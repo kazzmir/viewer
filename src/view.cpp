@@ -35,7 +35,7 @@ public:
     scroll(0){
     }
 
-    int maxThumbnails(ALLEGRO_DISPLAY * display){
+    int maxThumbnails(ALLEGRO_DISPLAY * display) const {
         int top = al_get_display_height(display) / 3;
         int height = al_get_display_height(display) - top;
         return (int) ((height - thumbnailHeightSpace) / (thumbnailHeight + thumbnailHeightSpace)) *
@@ -43,7 +43,7 @@ public:
         // return ((al_get_display_width(display) - thumbnailWidthSpace) * height) / ((thumbnailWidth + thumbnailWidthSpace) * (thumbnailHeight + thumbnailHeightSpace));
     }
 
-    int thumbnailsLine(ALLEGRO_DISPLAY * display){
+    int thumbnailsLine(ALLEGRO_DISPLAY * display) const {
         return (al_get_display_width(display) - thumbnailWidthSpace) / (thumbnailWidthSpace + thumbnailWidth);
     }
 
@@ -80,7 +80,7 @@ public:
     void moveRight(ALLEGRO_DISPLAY * display){
         if (images.size() > 0){
             show += 1;
-            if (show > images.size()){
+            if (show >= images.size()){
                 show = images.size() - 1;
             }
         }
@@ -91,7 +91,7 @@ public:
     void moveDown(ALLEGRO_DISPLAY * display){
         if (images.size() > 0){
             show += thumbnailsLine(display);
-            if (show > images.size()){
+            if (show >= images.size()){
                 show = images.size() - 1;
             }
         }
@@ -139,6 +139,50 @@ public:
         */
     }
 
+    /* set all bitmaps that aren't being shown to memory and set the bitmaps
+     * that are visible to video
+     */
+    void updateBitmaps(ALLEGRO_DISPLAY * display) const {
+        al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
+        for (int i = 0; i < scroll; i++){
+            Image * image = images[i];
+            ALLEGRO_BITMAP * bitmap = image->image;
+            if ((al_get_bitmap_flags(bitmap) & ALLEGRO_VIDEO_BITMAP) != 0){
+                al_convert_bitmap(bitmap);
+            }
+        }
+        for (int i = scroll + maxThumbnails(display); i < images.size(); i++){
+            Image * image = images[i];
+            ALLEGRO_BITMAP * bitmap = image->image;
+            if ((al_get_bitmap_flags(bitmap) & ALLEGRO_VIDEO_BITMAP) != 0){
+                al_convert_bitmap(bitmap);
+            }
+        }
+
+        /* Set the visible ones to video */
+        al_set_new_bitmap_flags(ALLEGRO_VIDEO_BITMAP);
+        for (int i = scroll; i < scroll + maxThumbnails(display) && i < images.size(); i++){
+            Image * image = images[i];
+            ALLEGRO_BITMAP * bitmap = image->image;
+            if ((al_get_bitmap_flags(bitmap) & ALLEGRO_MEMORY_BITMAP) != 0){
+                al_convert_bitmap(bitmap);
+            }
+        }
+
+        /* Just to make sure the number of video bitmaps is the right amount */
+        /*
+        int totalVideo = 0;
+        for (vector<Image*>::const_iterator it = images.begin(); it != images.end(); it++){
+            ALLEGRO_BITMAP * bitmap = (*it)->image;
+            if ((al_get_bitmap_flags(bitmap) & ALLEGRO_VIDEO_BITMAP) != 0){
+                totalVideo += 1;
+            }
+        }
+
+        printf("Total video bitmaps %d\n", totalVideo);
+        */
+    }
+
     int thumbnailWidth;
     int thumbnailHeight;
     int thumbnailWidthSpace;
@@ -179,12 +223,13 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
 
     double top = al_get_display_height(display) / 3.0;
     al_draw_line(0, top, al_get_display_width(display), top, al_map_rgb_f(1, 1, 1), 1);
-    
+
+    view.updateBitmaps(display);
 
     if (view.images.size() > 0){
         Image * image = view.images[view.show];
-        double widthRatio = (double) al_get_display_width(display) / al_get_bitmap_width(image->image);
-        double heightRatio = (double) al_get_display_height(display) / al_get_bitmap_height(image->image);
+        // double widthRatio = (double) al_get_display_width(display) / al_get_bitmap_width(image->image);
+        // double heightRatio = (double) al_get_display_height(display) / al_get_bitmap_height(image->image);
         
         int px = al_get_display_width(display) / 2 - al_get_bitmap_width(image->image) / 2;
         int py = top / 2 - al_get_bitmap_height(image->image) / 2;
@@ -340,7 +385,7 @@ int main(){
             } else if (event.type == ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W')){
                 debug("Got image %p\n", event.user.data1);
                 Image * image = (Image*) event.user.data1;
-                al_convert_bitmap(image->image);
+                // al_convert_bitmap(image->image);
                 view.images.push_back(image);
                 draw = true;
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
