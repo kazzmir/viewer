@@ -66,48 +66,42 @@ public:
         updateScroll(display);
     }
 
-    void moveLeft(ALLEGRO_DISPLAY * display){
+    void move(ALLEGRO_DISPLAY * display, int much){
         if (images.size() > 0){
-            show -= 1;
+            show += much;
             if (show < 0){
                 show = 0;
+            }
+            if (show >= images.size()){
+                show = images.size() - 1;
             }
         }
 
         updateScroll(display);
+    }
+
+    void moveLeft(ALLEGRO_DISPLAY * display){
+        move(display, -1);
     }
     
     void moveRight(ALLEGRO_DISPLAY * display){
-        if (images.size() > 0){
-            show += 1;
-            if (show >= images.size()){
-                show = images.size() - 1;
-            }
-        }
-        
-        updateScroll(display);
+        move(display, 1);
     }
 
     void moveDown(ALLEGRO_DISPLAY * display){
-        if (images.size() > 0){
-            show += thumbnailsLine(display);
-            if (show >= images.size()){
-                show = images.size() - 1;
-            }
-        }
-
-        updateScroll(display);
+        move(display, thumbnailsLine(display));
     }
 
     void moveUp(ALLEGRO_DISPLAY * display){
-        if (images.size() > 0){
-            show -= thumbnailsLine(display);
-            if (show < 0){
-                show = 0;
-            }
-        }
-
-        updateScroll(display);
+        move(display, -thumbnailsLine(display));
+    }
+    
+    void pageUp(ALLEGRO_DISPLAY * display){
+        move(display, -maxThumbnails(display));
+    }
+    
+    void pageDown(ALLEGRO_DISPLAY * display){
+        move(display, maxThumbnails(display));
     }
 
     void updateScroll(ALLEGRO_DISPLAY * display){
@@ -228,6 +222,9 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
 
     if (view.images.size() > 0){
         Image * image = view.images[view.show];
+        std::ostringstream number;
+        number << (view.show + 1) << " / " << view.images.size();
+        al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
         // double widthRatio = (double) al_get_display_width(display) / al_get_bitmap_width(image->image);
         // double heightRatio = (double) al_get_display_height(display) / al_get_bitmap_height(image->image);
         
@@ -377,6 +374,12 @@ int main(){
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_UP){
                     draw = true;
                     view.moveUp(display);
+                } else if (event.keyboard.keycode == ALLEGRO_KEY_PGDN){
+                    draw = true;
+                    view.pageDown(display);
+                } else if (event.keyboard.keycode == ALLEGRO_KEY_PGUP){
+                    draw = true;
+                    view.pageUp(display);
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_MINUS){
                     view.smallerThumbnails(display);
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_EQUALS){
