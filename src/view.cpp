@@ -14,10 +14,6 @@ using std::string;
 // #define debug(...) printf(__VA_ARGS__)
 #define debug(...)
 
-const int thumbnailWidth = 40;
-const int thumbnailHeight = 40;
-const int thumbnailWidthSpace = 4;
-const int thumbnailHeightSpace = 4;
 
 struct Image{
     Image(ALLEGRO_BITMAP * image, const char * name):
@@ -28,17 +24,111 @@ struct Image{
     string filename;
 };
 
-int maxThumbnails(ALLEGRO_DISPLAY * display){
-    int top = al_get_display_height(display) / 3;
-    int height = al_get_display_height(display) - top;
-    return (int) ((height - thumbnailHeightSpace) / (thumbnailHeight + thumbnailHeightSpace)) *
-           (int) ((al_get_display_width(display) - thumbnailWidthSpace) / (thumbnailWidth + thumbnailWidthSpace));
-    // return ((al_get_display_width(display) - thumbnailWidthSpace) * height) / ((thumbnailWidth + thumbnailWidthSpace) * (thumbnailHeight + thumbnailHeightSpace));
-}
+class View{
+public:
+    View():
+    thumbnailWidth(40),
+    thumbnailHeight(40),
+    thumbnailWidthSpace(4),
+    thumbnailHeightSpace(4),
+    show(0),
+    scroll(0){
+    }
 
-int thumbnailsLine(ALLEGRO_DISPLAY * display){
-    return (al_get_display_width(display) - thumbnailWidthSpace) / (thumbnailWidthSpace + thumbnailWidth);
-}
+    int maxThumbnails(ALLEGRO_DISPLAY * display){
+        int top = al_get_display_height(display) / 3;
+        int height = al_get_display_height(display) - top;
+        return (int) ((height - thumbnailHeightSpace) / (thumbnailHeight + thumbnailHeightSpace)) *
+            (int) ((al_get_display_width(display) - thumbnailWidthSpace) / (thumbnailWidth + thumbnailWidthSpace));
+        // return ((al_get_display_width(display) - thumbnailWidthSpace) * height) / ((thumbnailWidth + thumbnailWidthSpace) * (thumbnailHeight + thumbnailHeightSpace));
+    }
+
+    int thumbnailsLine(ALLEGRO_DISPLAY * display){
+        return (al_get_display_width(display) - thumbnailWidthSpace) / (thumbnailWidthSpace + thumbnailWidth);
+    }
+
+    void moveLeft(ALLEGRO_DISPLAY * display){
+        if (images.size() > 0){
+            show -= 1;
+            if (show < 0){
+                show = 0;
+            }
+        }
+
+        updateScroll(display);
+    }
+    
+    void moveRight(ALLEGRO_DISPLAY * display){
+        if (images.size() > 0){
+            show += 1;
+            if (show > images.size()){
+                show = images.size() - 1;
+            }
+        }
+        
+        updateScroll(display);
+    }
+
+    void moveDown(ALLEGRO_DISPLAY * display){
+        if (images.size() > 0){
+            show += thumbnailsLine(display);
+            if (show > images.size()){
+                show = images.size() - 1;
+            }
+        }
+
+        updateScroll(display);
+    }
+
+    void moveUp(ALLEGRO_DISPLAY * display){
+        if (images.size() > 0){
+            show -= thumbnailsLine(display);
+            if (show < 0){
+                show = 0;
+            }
+        }
+
+        updateScroll(display);
+    }
+
+    void updateScroll(ALLEGRO_DISPLAY * display){
+        if (show < scroll){
+            scroll -= thumbnailsLine(display);
+            if (scroll < 0){
+                scroll = 0;
+            }
+        }
+
+        if (show > scroll){
+            while (true){
+                int many = show - scroll;
+                if (many >= maxThumbnails(display) - thumbnailsLine(display)){
+                    scroll += thumbnailsLine(display);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        /*
+        if (view.scroll < view.show - view.maxThumbnails(display) + view.thumbnailsLine(display)){
+            view.scroll = view.show - view.maxThumbnails(display) + view.thumbnailsLine(display);
+            if (view.scroll < 0){
+                view.scroll = 0;
+            }
+        }
+        */
+    }
+
+    int thumbnailWidth;
+    int thumbnailHeight;
+    int thumbnailWidthSpace;
+    int thumbnailHeightSpace;
+
+    int show;
+    int scroll;
+    vector<Image*> images;
+};
 
 void * loadImages(ALLEGRO_THREAD * self, void * data){
     ALLEGRO_EVENT_SOURCE * events = (ALLEGRO_EVENT_SOURCE*) data;
@@ -64,12 +154,6 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
 
     return NULL;
 }
-
-struct View{
-    int show;
-    int scroll;
-    vector<Image*> images;
-};
 
 static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & view){
     al_clear_to_color(al_map_rgb(0, 0, 0));
@@ -112,8 +196,8 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
     }
 
     
-    int x = thumbnailWidthSpace;
-    int y = top + thumbnailHeightSpace;
+    int x = view.thumbnailWidthSpace;
+    int y = top + view.thumbnailHeightSpace;
 
     int count = view.scroll;
     for (vector<Image*>::const_iterator it = view.images.begin() + view.scroll; it != view.images.end(); it++, count++){
@@ -125,8 +209,8 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
         int pw = al_get_bitmap_width(image);
         int ph = al_get_bitmap_height(image);
 
-        double expandHeight = (double) thumbnailHeight / al_get_bitmap_height(image);
-        double expandWidth = (double) thumbnailWidth / al_get_bitmap_width(image);
+        double expandHeight = (double) view.thumbnailHeight / al_get_bitmap_height(image);
+        double expandWidth = (double) view.thumbnailWidth / al_get_bitmap_width(image);
 
         double expand = 1;
         if (expandHeight < expandWidth){
@@ -150,13 +234,13 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
             al_draw_rectangle(px - 2, py - 2, px + pw + 2, py + ph + 2, al_map_rgb_f(1, 0, 0), 2);
         }
 
-        x += thumbnailWidth + thumbnailWidthSpace;
-        if (x + thumbnailWidth >= al_get_display_width(display)){
+        x += view.thumbnailWidth + view.thumbnailWidthSpace;
+        if (x + view.thumbnailWidth >= al_get_display_width(display)){
             x = 1;
-            y += thumbnailHeight + thumbnailHeightSpace;
+            y += view.thumbnailHeight + view.thumbnailHeightSpace;
         }
 
-        if (y + thumbnailHeight >= al_get_display_height(display)){
+        if (y + view.thumbnailHeight >= al_get_display_height(display)){
             debug("break height\n");
             break;
         }
@@ -198,14 +282,12 @@ int main(){
         return -1;
     }
 
-    debug("thumbs %d\n", maxThumbnails(display));
+    View view;
+
+    debug("thumbs %d\n", view.maxThumbnails(display));
 
     ALLEGRO_THREAD * imageThread = al_create_thread(loadImages, &imageSource);
     al_start_thread(imageThread);
-
-    View view;
-    view.show = 0;
-    view.scroll = 0;
 
     ALLEGRO_EVENT event;
     while (true){
@@ -221,51 +303,17 @@ int main(){
                     return 0;
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_LEFT){
                     draw = true;
-                    if (view.images.size() > 0){
-                        view.show = (view.show - 1 + view.images.size()) % view.images.size();
-                    }
+                    view.moveLeft(display);
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_RIGHT){
                     draw = true;
-                    if (view.images.size() > 0){
-                        view.show = (view.show + 1 + view.images.size()) % view.images.size();
-                    }
+                    view.moveRight(display);
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_DOWN){
                     draw = true;
-                    if (view.images.size() > 0){
-                        view.show = (view.show + thumbnailsLine(display) + view.images.size()) % view.images.size();
-                    }
+                    view.moveDown(display);
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_UP){
                     draw = true;
-                    if (view.images.size() > 0){
-                        view.show = (view.show - thumbnailsLine(display) + view.images.size()) % view.images.size();
-                    }
+                    view.moveUp(display);
                 }
-
-                if (view.show < view.scroll){
-                    view.scroll -= thumbnailsLine(display);
-                    if (view.scroll < 0){
-                        view.scroll = 0;
-                    }
-                }
-
-                if (view.show > view.scroll){
-                    while (true){
-                        int many = view.show - view.scroll;
-                        if (many >= maxThumbnails(display) - thumbnailsLine(display)){
-                            view.scroll += thumbnailsLine(display);
-                        } else {
-                            break;
-                        }
-                    }
-                }
-
-                if (view.scroll < view.show - maxThumbnails(display) + thumbnailsLine(display)){
-                    view.scroll = view.show - maxThumbnails(display) + thumbnailsLine(display);
-                    if (view.scroll < 0){
-                        view.scroll = 0;
-                    }
-                }
-
             } else if (event.type == ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W')){
                 debug("Got image %p\n", event.user.data1);
                 Image * image = (Image*) event.user.data1;
