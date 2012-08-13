@@ -105,7 +105,7 @@ public:
     }
 
     void updateScroll(ALLEGRO_DISPLAY * display){
-        if (show < scroll){
+        while (show < scroll){
             scroll -= thumbnailsLine(display);
             if (scroll < 0){
                 scroll = 0;
@@ -394,6 +394,8 @@ int main(){
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                 al_acknowledge_resize(display);
                 al_resize_display(display, event.display.width, event.display.height);
+                draw = true;
+            } else if (event.type == ALLEGRO_EVENT_DISPLAY_EXPOSE){
                 draw = true;
             }
         } while (al_peek_next_event(queue, &event));
