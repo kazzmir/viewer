@@ -266,7 +266,6 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
         al_draw_text(font, al_map_rgb_f(1, 1, 1), al_get_display_width(display) / 2, top - al_get_font_line_height(font) - 1, ALLEGRO_ALIGN_CENTRE, image->filename.c_str()); 
     }
 
-    
     int x = view.thumbnailWidthSpace;
     int y = top + view.thumbnailHeightSpace;
 
@@ -408,7 +407,7 @@ int main(){
                 draw = true;
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                 al_acknowledge_resize(display);
-                al_resize_display(display, event.display.width, event.display.height);
+                // al_resize_display(display, event.display.width, event.display.height);
                 draw = true;
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_EXPOSE){
                 draw = true;
