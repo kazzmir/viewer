@@ -14,6 +14,8 @@ using std::string;
 // #define debug(...) printf(__VA_ARGS__)
 #define debug(...)
 
+ALLEGRO_MUTEX * globalQuit;
+bool doQuit = false;
 
 struct Image{
     Image(ALLEGRO_BITMAP * image, const char * name):
@@ -194,6 +196,14 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
     ALLEGRO_FS_ENTRY * file = al_read_directory(here);
     al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
     while (file != NULL){
+
+        al_lock_mutex(globalQuit);
+        if (doQuit){
+            al_unlock_mutex(globalQuit);
+            break;
+        }
+        al_unlock_mutex(globalQuit);
+
         debug("Entry %s\n", al_get_fs_entry_name(file));
         ALLEGRO_BITMAP * image = al_load_bitmap(al_get_fs_entry_name(file));
         if (image != NULL){
@@ -337,6 +347,8 @@ int main(){
     al_register_event_source(queue, &imageSource);
     al_register_event_source(queue, al_get_display_event_source(display));
 
+    globalQuit = al_create_mutex();
+
     ALLEGRO_FONT * font = getFont();
     if (font == NULL){
         printf("Could not load font\n");
@@ -357,8 +369,11 @@ int main(){
             al_wait_for_event(queue, &event);
             if (event.type == ALLEGRO_EVENT_KEY_CHAR){
                 if (event.keyboard.keycode == ALLEGRO_KEY_ESCAPE){
-                    al_destroy_user_event_source(&imageSource);
+                    al_lock_mutex(globalQuit);
+                    doQuit = true;
+                    al_unlock_mutex(globalQuit);
                     al_join_thread(imageThread, NULL);
+                    al_destroy_user_event_source(&imageSource);
                     al_destroy_display(display);
                     debug("Quit\n");
                     return 0;
