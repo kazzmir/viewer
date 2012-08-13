@@ -47,6 +47,25 @@ public:
         return (al_get_display_width(display) - thumbnailWidthSpace) / (thumbnailWidthSpace + thumbnailWidth);
     }
 
+    void largerThumbnails(ALLEGRO_DISPLAY * display){
+        thumbnailWidth += 5;
+        thumbnailHeight += 5;
+        updateScroll(display);
+    }
+
+    void smallerThumbnails(ALLEGRO_DISPLAY * display){
+        thumbnailWidth -= 5;
+        thumbnailHeight -= 5;
+        if (thumbnailWidth < 5){
+            thumbnailWidth = 5;
+        }
+        if (thumbnailHeight < 5){
+            thumbnailHeight = 5;
+        }
+
+        updateScroll(display);
+    }
+
     void moveLeft(ALLEGRO_DISPLAY * display){
         if (images.size() > 0){
             show -= 1;
@@ -313,6 +332,10 @@ int main(){
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_UP){
                     draw = true;
                     view.moveUp(display);
+                } else if (event.keyboard.keycode == ALLEGRO_KEY_MINUS){
+                    view.smallerThumbnails(display);
+                } else if (event.keyboard.keycode == ALLEGRO_KEY_EQUALS){
+                    view.largerThumbnails(display);
                 }
             } else if (event.type == ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W')){
                 debug("Got image %p\n", event.user.data1);
