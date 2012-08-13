@@ -357,7 +357,7 @@ int main(int argc, char ** argv){
     al_init_primitives_addon();
     al_init_font_addon();
     al_init_ttf_addon();
-    al_set_new_display_flags(ALLEGRO_RESIZABLE);
+    al_set_new_display_flags(ALLEGRO_RESIZABLE | ALLEGRO_GENERATE_EXPOSE_EVENTS);
     ALLEGRO_DISPLAY * display = al_create_display(800, 700);
     ALLEGRO_EVENT_QUEUE * queue = al_create_event_queue();
     al_register_event_source(queue, al_get_keyboard_event_source());
