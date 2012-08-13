@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <algorithm>
 
 using std::vector;
 using std::string;
@@ -18,13 +19,17 @@ ALLEGRO_MUTEX * globalQuit;
 bool doQuit = false;
 
 struct Image{
-    Image(ALLEGRO_BITMAP * image, const char * name):
+    Image(ALLEGRO_BITMAP * image, const string & name):
         image(image), filename(name){
         }
 
     ALLEGRO_BITMAP * image;
     string filename;
 };
+
+static bool sortImage(Image * a, Image * b){
+    return a->filename < b->filename;
+}
 
 class View{
 public:
@@ -195,8 +200,8 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
     al_open_directory(here);
     ALLEGRO_FS_ENTRY * file = al_read_directory(here);
     al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
+    vector<string> files;
     while (file != NULL){
-
         al_lock_mutex(globalQuit);
         if (doQuit){
             al_unlock_mutex(globalQuit);
@@ -205,17 +210,32 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
         al_unlock_mutex(globalQuit);
 
         debug("Entry %s\n", al_get_fs_entry_name(file));
-        ALLEGRO_BITMAP * image = al_load_bitmap(al_get_fs_entry_name(file));
+        files.push_back(al_get_fs_entry_name(file));
+        al_destroy_fs_entry(file);
+        file = al_read_directory(here);
+    }
+
+    std::sort(files.begin(), files.end());
+
+    for (vector<string>::iterator it = files.begin(); it != files.end(); it++){
+        al_lock_mutex(globalQuit);
+        if (doQuit){
+            al_unlock_mutex(globalQuit);
+            break;
+        }
+        al_unlock_mutex(globalQuit);
+
+        ALLEGRO_BITMAP * image = al_load_bitmap(it->c_str());
         if (image != NULL){
             ALLEGRO_EVENT event;
             event.user.type = ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W');
-            Image * store = new Image(image, al_get_fs_entry_name(file));
+            Image * store = new Image(image, *it);
             event.user.data1 = (intptr_t) store;
             al_emit_user_event(events, &event, NULL);
             debug(" ..image %p\n", image);
         }
-        file = al_read_directory(here);
     }
+
     al_close_directory(here);
     al_destroy_fs_entry(here);
 
@@ -402,7 +422,6 @@ int main(int argc, char ** argv){
             } else if (event.type == ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W')){
                 debug("Got image %p\n", event.user.data1);
                 Image * image = (Image*) event.user.data1;
-                // al_convert_bitmap(image->image);
                 view.images.push_back(image);
                 draw = true;
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
@@ -412,7 +431,7 @@ int main(int argc, char ** argv){
                 draw = true;
             }
         } while (al_peek_next_event(queue, &event));
-            
+
         if (draw){
             redraw(display, font, view);
         }
