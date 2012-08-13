@@ -330,7 +330,7 @@ ALLEGRO_FONT * getFont(){
     return al_load_font(out.str().c_str(), 20, 0);
 }
 
-int main(){
+int main(int argc, char ** argv){
     al_init();
     al_install_keyboard();
     al_init_image_addon();
