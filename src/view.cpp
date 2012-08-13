@@ -253,8 +253,11 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
     if (view.images.size() > 0){
         Image * image = view.images[view.show];
         std::ostringstream number;
-        number << (view.show + 1) << " / " << view.images.size();
+        number << "Image " << (view.show + 1) << " / " << view.images.size();
         al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
+        number.str("");
+        number << al_get_bitmap_width(image->image) << " x " << al_get_bitmap_height(image->image);
+        al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1 + al_get_font_line_height(font) + 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
         // double widthRatio = (double) al_get_display_width(display) / al_get_bitmap_width(image->image);
         // double heightRatio = (double) al_get_display_height(display) / al_get_bitmap_height(image->image);
         
