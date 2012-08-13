@@ -406,8 +406,7 @@ int main(int argc, char ** argv){
                 view.images.push_back(image);
                 draw = true;
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
-                al_acknowledge_resize(display);
-                // al_resize_display(display, event.display.width, event.display.height);
+                al_acknowledge_resize(event.display.source);
                 draw = true;
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_EXPOSE){
                 draw = true;
