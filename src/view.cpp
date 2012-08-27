@@ -419,8 +419,10 @@ int main(int argc, char ** argv){
                     view.pageUp(display);
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_MINUS){
                     view.smallerThumbnails(display);
+                    draw = true;
                 } else if (event.keyboard.keycode == ALLEGRO_KEY_EQUALS){
                     view.largerThumbnails(display);
+                    draw = true;
                 }
             } else if (event.type == ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W')){
                 debug("Got image %p\n", event.user.data1);
