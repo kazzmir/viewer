@@ -250,7 +250,7 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
 
     view.updateBitmaps(display);
 
-    if (view.images.size() > 0){
+    if (view.images.size() > view.show){
         Image * image = view.images[view.show];
         std::ostringstream number;
         number << "Image " << (view.show + 1) << " / " << view.images.size();
@@ -266,8 +266,8 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
         int pw = al_get_bitmap_width(image->image);
         int ph = al_get_bitmap_height(image->image);
 
-        double expandHeight = (top - al_get_font_line_height(font) - 10) / al_get_bitmap_height(image->image);
-        double expandWidth = (al_get_display_width(display) - 10) / al_get_bitmap_width(image->image);
+        double expandHeight = (top - al_get_font_line_height(font) - 10) / (double) al_get_bitmap_height(image->image);
+        double expandWidth = (al_get_display_width(display) - 10) / (double) al_get_bitmap_width(image->image);
 
         double expand = 1;
         if (expandHeight < expandWidth){
