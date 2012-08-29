@@ -20,10 +20,13 @@ ALLEGRO_MUTEX * globalQuit;
 bool doQuit = false;
 
 struct Image{
-    Image(ALLEGRO_BITMAP * image, const string & name):
-        image(image), filename(name){
+    Image(ALLEGRO_BITMAP * thumbnail, const string & name):
+        thumbnail(thumbnail),
+        image(NULL),
+        filename(name){
         }
 
+    ALLEGRO_BITMAP * thumbnail;
     ALLEGRO_BITMAP * image;
     string filename;
 };
@@ -76,6 +79,10 @@ public:
 
     void move(ALLEGRO_DISPLAY * display, int much){
         if (images.size() > 0){
+            if (images[show]->image != NULL){
+                al_destroy_bitmap(images[show]->image);
+                images[show]->image = NULL;
+            }
             show += much;
             if (show < 0){
                 show = 0;
@@ -83,6 +90,7 @@ public:
             if (show >= images.size()){
                 show = images.size() - 1;
             }
+            images[show]->image = al_load_bitmap(images[show]->filename.c_str());
         }
 
         updateScroll(display);
@@ -148,28 +156,31 @@ public:
         al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
         for (int i = 0; i < scroll; i++){
             Image * image = images[i];
-            ALLEGRO_BITMAP * bitmap = image->image;
+            ALLEGRO_BITMAP * bitmap = image->thumbnail;
             if ((al_get_bitmap_flags(bitmap) & ALLEGRO_VIDEO_BITMAP) != 0){
                 al_convert_bitmap(bitmap);
             }
         }
         for (int i = scroll + maxThumbnails(display); i < images.size(); i++){
             Image * image = images[i];
-            ALLEGRO_BITMAP * bitmap = image->image;
+            ALLEGRO_BITMAP * bitmap = image->thumbnail;
             if ((al_get_bitmap_flags(bitmap) & ALLEGRO_VIDEO_BITMAP) != 0){
                 al_convert_bitmap(bitmap);
             }
         }
 
         /* Set the visible ones to video */
-        al_set_new_bitmap_flags(ALLEGRO_VIDEO_BITMAP);
+        al_set_new_bitmap_flags(ALLEGRO_CONVERT_BITMAP);
         for (int i = scroll; i < scroll + maxThumbnails(display) && i < images.size(); i++){
             Image * image = images[i];
-            ALLEGRO_BITMAP * bitmap = image->image;
+            ALLEGRO_BITMAP * bitmap = image->thumbnail;
             if ((al_get_bitmap_flags(bitmap) & ALLEGRO_MEMORY_BITMAP) != 0){
                 al_convert_bitmap(bitmap);
             }
         }
+
+        /* Reset the default */
+        al_set_new_bitmap_flags(ALLEGRO_CONVERT_BITMAP);
 
         /* Just to make sure the number of video bitmaps is the right amount */
         /*
@@ -237,7 +248,19 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
         if (image != NULL){
             ALLEGRO_EVENT event;
             event.user.type = ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W');
-            Image * store = new Image(image, *it);
+            double scale = 1;
+            double scaleWidth = 80.0 / al_get_bitmap_width(image);
+            double scaleHeight = 80.0 / al_get_bitmap_height(image);
+            if (scaleHeight < scaleWidth){
+                scale = scaleHeight;
+            } else {
+                scale = scaleWidth;
+            }
+            ALLEGRO_BITMAP * thumbnail = al_create_bitmap(al_get_bitmap_width(image) * scale, al_get_bitmap_height(image) * scale);
+            al_set_target_bitmap(thumbnail);
+            al_draw_scaled_bitmap(image, 0, 0, al_get_bitmap_width(image), al_get_bitmap_height(image), 0, 0, al_get_bitmap_width(thumbnail), al_get_bitmap_height(thumbnail), 0);
+            al_destroy_bitmap(image);
+            Image * store = new Image(thumbnail, *it);
             event.user.data1 = (intptr_t) store;
             al_emit_user_event(events, &event, NULL);
             debug(" ..image %p\n", image);
@@ -258,7 +281,7 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
 
     view.updateBitmaps(display);
 
-    if (view.images.size() > view.show){
+    if (view.images.size() > view.show && view.images[view.show]->image != NULL){
         Image * image = view.images[view.show];
         std::ostringstream number;
         number << "Image " << (view.show + 1) << " / " << view.images.size();
@@ -303,7 +326,7 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
     int count = view.scroll;
     for (vector<Image*>::const_iterator it = view.images.begin() + view.scroll; it != view.images.end(); it++, count++){
         Image * store = *it;
-        ALLEGRO_BITMAP * image = store->image;
+        ALLEGRO_BITMAP * image = store->thumbnail;
 
         int px = x;
         int py = y;
@@ -465,6 +488,9 @@ int main(int argc, char ** argv){
     View view;
 
     debug("thumbs %d\n", view.maxThumbnails(display));
+
+    redraw(display, font, view);
+    al_flip_display();
 
     ALLEGRO_THREAD * imageThread = al_create_thread(loadImages, &imageSource);
     al_start_thread(imageThread);
@@ -633,6 +659,9 @@ int main(int argc, char ** argv){
                 debug("Got image %p\n", event.user.data1);
                 Image * image = (Image*) event.user.data1;
                 view.images.push_back(image);
+                if (view.images[view.show]->image == NULL){
+                    view.images[view.show]->image = al_load_bitmap(view.images[view.show]->filename.c_str());
+                }
                 draw = true;
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                 al_acknowledge_resize(event.display.source);
