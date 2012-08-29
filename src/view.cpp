@@ -544,7 +544,7 @@ int main(int argc, char ** argv){
                             al_start_timer(timer);
                             al_register_event_source(queue, al_get_timer_event_source(timer));
                             Position position = computePosition(display, font, image);
-                            const int steps = 13;
+                            const int steps = 12;
                             int much = 0;
                             while (ok){
                                 al_wait_for_event(queue, &event);
@@ -592,7 +592,6 @@ int main(int argc, char ** argv){
                             }
 
                             /* Uninterpolate the image */
-                            much = steps;
                             ok = true;
                             while (ok){
                                 al_wait_for_event(queue, &event);
