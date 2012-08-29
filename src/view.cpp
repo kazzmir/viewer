@@ -8,6 +8,7 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <math.h>
 
 using std::vector;
 using std::string;
@@ -184,6 +185,13 @@ public:
         */
     }
 
+    Image * currentImage() const {
+        if (show < images.size()){
+            return images[show];
+        }
+        return NULL;
+    }
+
     int thumbnailWidth;
     int thumbnailHeight;
     int thumbnailWidthSpace;
@@ -338,8 +346,6 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
             break;
         }
     }
-
-    al_flip_display();
 }
 
 /* Get the font from the directory where the executable lives */
@@ -351,6 +357,79 @@ ALLEGRO_FONT * getFont(){
     al_destroy_path(path);
     debug("Path is %s\n", out.str().c_str());
     return al_load_font(out.str().c_str(), 20, 0);
+}
+
+struct Position{
+    int startX1, startY1;
+    int startX2, startY2;
+    int endX1, endY1;
+    int endX2, endY2;
+};
+
+Position computePosition(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, Image * image){
+    Position position;
+
+    int pw = al_get_bitmap_width(image->image);
+    int ph = al_get_bitmap_height(image->image);
+
+    double top = al_get_display_height(display) / 3.0;
+
+    double expandHeight = (top - al_get_font_line_height(font) - 10) / (double) al_get_bitmap_height(image->image);
+    double expandWidth = (al_get_display_width(display) - 10) / (double) al_get_bitmap_width(image->image);
+
+    double expand = 1;
+    if (expandHeight < expandWidth){
+        expand = expandHeight;
+    } else {
+        expand = expandWidth;
+    }
+    int newWidth = al_get_bitmap_width(image->image) * expand;
+    int newHeight = al_get_bitmap_height(image->image) * expand;
+
+    int px = al_get_display_width(display) / 2 - newWidth / 2;
+    int py = (top - al_get_font_line_height(font)) / 2 - newHeight / 2;
+    pw = newWidth;
+    ph = newHeight;
+
+    position.startX1 = px;
+    position.startY1 = py;
+    position.startX2 = px + pw;
+    position.startY2 = py + ph;
+
+    expandWidth = (double) (al_get_display_width(display) - 10) / al_get_bitmap_width(image->image);
+    expandHeight = (double) (al_get_display_height(display) - 10) / al_get_bitmap_height(image->image);
+
+    newWidth = al_get_bitmap_width(image->image);
+    newHeight = al_get_bitmap_height(image->image);
+    if (expandWidth < 1 || expandHeight < 1){
+        double expand = 1;
+        if (expandHeight < expandWidth){
+            expand = expandHeight;
+        } else {
+            expand = expandWidth;
+        }
+        newWidth = al_get_bitmap_width(image->image) * expand;
+        newHeight = al_get_bitmap_height(image->image) * expand;
+    }
+
+    position.endX1 = al_get_display_width(display) / 2 - newWidth / 2;
+    position.endY1 = al_get_display_height(display) / 2 - newHeight / 2;
+    position.endX2 = al_get_display_width(display) / 2 + newWidth / 2;
+    position.endY2 = al_get_display_height(display) / 2 + newHeight / 2;
+
+    return position;
+}
+                                    
+void drawCenter(Image * image, const Position & position, int steps, int much){
+    // double interpolate = (double) much / (double) steps;
+    double interpolate = sin((double) much * 90.0 / (double) steps * 3.14159 / 180);
+    int px = (int)(position.startX1 * (1 - interpolate) + position.endX1 * interpolate);
+    int pw = (int)(position.startX2 * (1 - interpolate) + position.endX2 * interpolate - px);
+    int py = (int)(position.startY1 * (1 - interpolate) + position.endY1 * interpolate);
+    int ph = (int)(position.startY2 * (1 - interpolate) + position.endY2 * interpolate - py);
+    al_draw_scaled_bitmap(image->image, 0, 0, al_get_bitmap_width(image->image), al_get_bitmap_height(image->image),
+                          px, py, pw, ph, 0);
+
 }
 
 int main(int argc, char ** argv){
@@ -390,39 +469,157 @@ int main(int argc, char ** argv){
         do{
             al_wait_for_event(queue, &event);
             if (event.type == ALLEGRO_EVENT_KEY_CHAR){
-                if (event.keyboard.keycode == ALLEGRO_KEY_ESCAPE){
-                    al_lock_mutex(globalQuit);
-                    doQuit = true;
-                    al_unlock_mutex(globalQuit);
-                    al_join_thread(imageThread, NULL);
-                    al_destroy_user_event_source(&imageSource);
-                    al_destroy_display(display);
-                    debug("Quit\n");
-                    return 0;
-                } else if (event.keyboard.keycode == ALLEGRO_KEY_LEFT){
-                    draw = true;
-                    view.moveLeft(display);
-                } else if (event.keyboard.keycode == ALLEGRO_KEY_RIGHT){
-                    draw = true;
-                    view.moveRight(display);
-                } else if (event.keyboard.keycode == ALLEGRO_KEY_DOWN){
-                    draw = true;
-                    view.moveDown(display);
-                } else if (event.keyboard.keycode == ALLEGRO_KEY_UP){
-                    draw = true;
-                    view.moveUp(display);
-                } else if (event.keyboard.keycode == ALLEGRO_KEY_PGDN){
-                    draw = true;
-                    view.pageDown(display);
-                } else if (event.keyboard.keycode == ALLEGRO_KEY_PGUP){
-                    draw = true;
-                    view.pageUp(display);
-                } else if (event.keyboard.keycode == ALLEGRO_KEY_MINUS){
-                    view.smallerThumbnails(display);
-                    draw = true;
-                } else if (event.keyboard.keycode == ALLEGRO_KEY_EQUALS){
-                    view.largerThumbnails(display);
-                    draw = true;
+                switch (event.keyboard.keycode){
+                    case ALLEGRO_KEY_ESCAPE: {
+                        /* BOOYA! This label can be jumped to by the other loop */
+                        quit_program:
+
+                        al_lock_mutex(globalQuit);
+                        doQuit = true;
+                        al_unlock_mutex(globalQuit);
+                        al_join_thread(imageThread, NULL);
+                        al_destroy_user_event_source(&imageSource);
+                        al_destroy_display(display);
+                        debug("Quit\n");
+                        return 0;
+                    }
+                    case ALLEGRO_KEY_LEFT: {
+                        draw = true;
+                        view.moveLeft(display);
+                        break;
+                    }
+                    case ALLEGRO_KEY_RIGHT: {
+                        draw = true;
+                        view.moveRight(display);
+                        break;
+                    }
+                    case ALLEGRO_KEY_DOWN: {
+                        draw = true;
+                        view.moveDown(display);
+                        break;
+                    }
+                    case ALLEGRO_KEY_UP: {
+                        draw = true;
+                        view.moveUp(display);
+                        break;
+                    }
+                    case ALLEGRO_KEY_PGDN: {
+                        draw = true;
+                        view.pageDown(display);
+                        break;
+                    }
+                    case ALLEGRO_KEY_PGUP: {
+                        draw = true;
+                        view.pageUp(display);
+                        break;
+                    }
+                    case ALLEGRO_KEY_MINUS: {
+                        view.smallerThumbnails(display);
+                        draw = true;
+                        break;
+                    }
+                    case ALLEGRO_KEY_EQUALS: {
+                        view.largerThumbnails(display);
+                        draw = true;
+                        break;
+                    }
+                    case ALLEGRO_KEY_ENTER: {
+
+                        /* Start a new loop that shows an animation of the current
+                         * image being interpolated to its position at the center
+                         * of the screen.
+                         */
+
+                        Image * image = view.currentImage();
+                        if (image != NULL){
+                            bool ok = true;
+                            bool wait = true;
+                            ALLEGRO_TIMER * timer = al_create_timer(0.02);
+                            al_start_timer(timer);
+                            al_register_event_source(queue, al_get_timer_event_source(timer));
+                            Position position = computePosition(display, font, image);
+                            const int steps = 13;
+                            int much = 0;
+                            while (ok){
+                                al_wait_for_event(queue, &event);
+                                if (event.type == ALLEGRO_EVENT_KEY_CHAR){
+                                    switch (event.keyboard.keycode){
+                                        case ALLEGRO_KEY_ESCAPE: {
+                                            goto quit_program;
+                                            break;
+                                        }
+                                        case ALLEGRO_KEY_ENTER: {
+                                            ok = false;
+                                            wait = false;
+                                            break;
+                                        }
+                                    }
+                                } else if (event.type == ALLEGRO_EVENT_TIMER){
+                                    much += 1;
+                                    if (much == steps){
+                                        ok = false;
+                                    }
+                                    redraw(display, font, view);
+                                    drawCenter(image, position, steps, much);
+                                    al_flip_display();
+                                }
+                            }
+
+                            if (wait){
+                                /* Wait for key press */
+                                ok = true;
+                                while (ok){
+                                    al_wait_for_event(queue, &event);
+                                    if (event.type == ALLEGRO_EVENT_KEY_CHAR){
+                                        switch (event.keyboard.keycode){
+                                            case ALLEGRO_KEY_ESCAPE: {
+                                                goto quit_program;
+                                                break;
+                                            }
+                                            case ALLEGRO_KEY_ENTER: {
+                                                ok = false;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            /* Uninterpolate the image */
+                            much = steps;
+                            ok = true;
+                            while (ok){
+                                al_wait_for_event(queue, &event);
+                                if (event.type == ALLEGRO_EVENT_KEY_CHAR){
+                                    switch (event.keyboard.keycode){
+                                        case ALLEGRO_KEY_ESCAPE: {
+                                            goto quit_program;
+                                            break;
+                                        }
+                                        case ALLEGRO_KEY_ENTER: {
+                                            ok = false;
+                                            break;
+                                        }
+                                    }
+                                } else if (event.type == ALLEGRO_EVENT_TIMER){
+                                    much -= 1;
+                                    if (much == 0){
+                                        ok = false;
+                                    }
+                                    redraw(display, font, view);
+                                    drawCenter(image, position, steps, much);
+                                    al_flip_display();
+                                }
+                            }
+
+                            al_stop_timer(timer);
+                            al_destroy_timer(timer);
+                        }
+
+                        break;
+                    }
+                    default: {
+                    }
                 }
             } else if (event.type == ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W')){
                 debug("Got image %p\n", event.user.data1);
@@ -439,6 +636,7 @@ int main(int argc, char ** argv){
 
         if (draw){
             redraw(display, font, view);
+            al_flip_display();
         }
     }
 
