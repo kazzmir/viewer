@@ -420,7 +420,13 @@ Position computePosition(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, Image *
     return position;
 }
                                     
-void drawCenter(Image * image, const Position & position, int steps, int much){
+void drawCenter(ALLEGRO_DISPLAY * display, Image * image, const Position & position, int steps, int much){
+
+    /* Darken rest of the screen */
+    al_set_blender(ALLEGRO_ADD, ALLEGRO_ALPHA, ALLEGRO_INVERSE_ALPHA);
+    al_draw_filled_rectangle(0, 0, al_get_display_width(display), al_get_display_height(display), al_map_rgba_f(0, 0, 0, 0.8));
+    al_set_blender(ALLEGRO_ADD, ALLEGRO_ONE, ALLEGRO_ZERO);
+
     // double interpolate = (double) much / (double) steps;
     double interpolate = sin((double) much * 90.0 / (double) steps * 3.14159 / 180);
     int px = (int)(position.startX1 * (1 - interpolate) + position.endX1 * interpolate);
@@ -560,7 +566,7 @@ int main(int argc, char ** argv){
                                         ok = false;
                                     }
                                     redraw(display, font, view);
-                                    drawCenter(image, position, steps, much);
+                                    drawCenter(display, image, position, steps, much);
                                     al_flip_display();
                                 }
                             }
@@ -607,10 +613,13 @@ int main(int argc, char ** argv){
                                         ok = false;
                                     }
                                     redraw(display, font, view);
-                                    drawCenter(image, position, steps, much);
+                                    drawCenter(display, image, position, steps, much);
                                     al_flip_display();
                                 }
                             }
+
+                            redraw(display, font, view);
+                            al_flip_display();
 
                             al_stop_timer(timer);
                             al_destroy_timer(timer);
