@@ -546,16 +546,7 @@ int main(int argc, char ** argv){
                         view.pageUp(display);
                         break;
                     }
-                    case ALLEGRO_KEY_MINUS: {
-                        view.smallerThumbnails(display);
-                        draw = true;
-                        break;
-                    }
-                    case ALLEGRO_KEY_EQUALS: {
-                        view.largerThumbnails(display);
-                        draw = true;
-                        break;
-                    }
+                    
                     case ALLEGRO_KEY_ENTER: {
 
                         /* Start a new loop that shows an animation of the current
@@ -689,6 +680,18 @@ int main(int argc, char ** argv){
                         break;
                     }
                     default: {
+                    }
+                }
+                switch (event.keyboard.unichar){
+                    case '-': {
+                        view.smallerThumbnails(display);
+                        draw = true;
+                        break;
+                    }
+                    case '=': {
+                        view.largerThumbnails(display);
+                        draw = true;
+                        break;
                     }
                 }
             } else if (event.type == ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W')){
