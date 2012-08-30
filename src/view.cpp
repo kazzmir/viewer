@@ -258,6 +258,7 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
             }
             ALLEGRO_BITMAP * thumbnail = al_create_bitmap(al_get_bitmap_width(image) * scale, al_get_bitmap_height(image) * scale);
             al_set_target_bitmap(thumbnail);
+            al_clear_to_color(al_map_rgba_f(0, 0, 0, 0));
             al_draw_scaled_bitmap(image, 0, 0, al_get_bitmap_width(image), al_get_bitmap_height(image), 0, 0, al_get_bitmap_width(thumbnail), al_get_bitmap_height(thumbnail), 0);
             al_destroy_bitmap(image);
             Image * store = new Image(thumbnail, *it);
