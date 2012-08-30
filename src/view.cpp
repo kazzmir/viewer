@@ -573,6 +573,7 @@ int main(int argc, char ** argv){
                             const int steps = 12;
                             int much = 0;
                             while (ok){
+                                bool draw = false;
                                 al_wait_for_event(queue, &event);
                                 if (event.type == ALLEGRO_EVENT_KEY_CHAR){
                                     switch (event.keyboard.keycode){
@@ -586,17 +587,21 @@ int main(int argc, char ** argv){
                                             break;
                                         }
                                     }
+                                } else if (event.type == ALLEGRO_EVENT_DISPLAY_EXPOSE){
+                                    draw = true;
                                 } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                                     al_acknowledge_resize(event.display.source);
                                     position = computePosition(display, font, image);
-                                    redraw(display, font, view);
-                                    drawCenter(display, image, position, steps, much);
-                                    al_flip_display();
+                                    draw = true;
                                 } else if (event.type == ALLEGRO_EVENT_TIMER){
                                     much += 1;
                                     if (much == steps){
                                         ok = false;
                                     }
+                                    draw = true;
+                                }
+
+                                if (draw){
                                     redraw(display, font, view);
                                     drawCenter(display, image, position, steps, much);
                                     al_flip_display();
@@ -608,6 +613,7 @@ int main(int argc, char ** argv){
                                 ok = true;
                                 while (ok){
                                     al_wait_for_event(queue, &event);
+                                    bool draw = false;
                                     if (event.type == ALLEGRO_EVENT_KEY_CHAR){
                                         switch (event.keyboard.keycode){
                                             case ALLEGRO_KEY_ESCAPE: {
@@ -619,14 +625,19 @@ int main(int argc, char ** argv){
                                                 break;
                                             }
                                         }
+                                    } else if (event.type == ALLEGRO_EVENT_DISPLAY_EXPOSE){
+                                        draw = true;
                                     } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                                         al_acknowledge_resize(event.display.source);
                                         position = computePosition(display, font, image);
+                                        draw = true;
+                                    }
+
+                                    if (draw){
                                         redraw(display, font, view);
                                         drawCenter(display, image, position, steps, much);
                                         al_flip_display();
                                     }
-
                                 }
                             }
 
@@ -634,6 +645,7 @@ int main(int argc, char ** argv){
                             ok = true;
                             while (ok){
                                 al_wait_for_event(queue, &event);
+                                bool draw = false;
                                 if (event.type == ALLEGRO_EVENT_KEY_CHAR){
                                     switch (event.keyboard.keycode){
                                         case ALLEGRO_KEY_ESCAPE: {
@@ -645,17 +657,21 @@ int main(int argc, char ** argv){
                                             break;
                                         }
                                     }
+                                } else if (event.type == ALLEGRO_EVENT_DISPLAY_EXPOSE){
+                                    draw = true;
                                 } else if (event.type == ALLEGRO_EVENT_TIMER){
                                     much -= 1;
                                     if (much == 0){
                                         ok = false;
                                     }
-                                    redraw(display, font, view);
-                                    drawCenter(display, image, position, steps, much);
-                                    al_flip_display();
+                                    draw = true;
                                 } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                                     al_acknowledge_resize(event.display.source);
                                     position = computePosition(display, font, image);
+                                    draw = true;
+                                }
+
+                                if (draw){
                                     redraw(display, font, view);
                                     drawCenter(display, image, position, steps, much);
                                     al_flip_display();
