@@ -586,6 +586,12 @@ int main(int argc, char ** argv){
                                             break;
                                         }
                                     }
+                                } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
+                                    al_acknowledge_resize(event.display.source);
+                                    position = computePosition(display, font, image);
+                                    redraw(display, font, view);
+                                    drawCenter(display, image, position, steps, much);
+                                    al_flip_display();
                                 } else if (event.type == ALLEGRO_EVENT_TIMER){
                                     much += 1;
                                     if (much == steps){
@@ -613,7 +619,14 @@ int main(int argc, char ** argv){
                                                 break;
                                             }
                                         }
+                                    } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
+                                        al_acknowledge_resize(event.display.source);
+                                        position = computePosition(display, font, image);
+                                        redraw(display, font, view);
+                                        drawCenter(display, image, position, steps, much);
+                                        al_flip_display();
                                     }
+
                                 }
                             }
 
@@ -637,6 +650,12 @@ int main(int argc, char ** argv){
                                     if (much == 0){
                                         ok = false;
                                     }
+                                    redraw(display, font, view);
+                                    drawCenter(display, image, position, steps, much);
+                                    al_flip_display();
+                                } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
+                                    al_acknowledge_resize(event.display.source);
+                                    position = computePosition(display, font, image);
                                     redraw(display, font, view);
                                     drawCenter(display, image, position, steps, much);
                                     al_flip_display();
