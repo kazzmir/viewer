@@ -213,30 +213,9 @@ public:
     vector<Image*> images;
 };
 
-void * loadImages(ALLEGRO_THREAD * self, void * data){
-    ALLEGRO_EVENT_SOURCE * events = (ALLEGRO_EVENT_SOURCE*) data;
-    ALLEGRO_FS_ENTRY * here = al_create_fs_entry(".");
-    al_open_directory(here);
-    ALLEGRO_FS_ENTRY * file = al_read_directory(here);
+static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * events){
     al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
-    vector<string> files;
-    while (file != NULL){
-        al_lock_mutex(globalQuit);
-        if (doQuit){
-            al_unlock_mutex(globalQuit);
-            break;
-        }
-        al_unlock_mutex(globalQuit);
-
-        debug("Entry %s\n", al_get_fs_entry_name(file));
-        files.push_back(al_get_fs_entry_name(file));
-        al_destroy_fs_entry(file);
-        file = al_read_directory(here);
-    }
-
-    std::sort(files.begin(), files.end());
-
-    for (vector<string>::iterator it = files.begin(); it != files.end(); it++){
+    for (vector<string>::const_iterator it = files.begin(); it != files.end(); it++){
         al_lock_mutex(globalQuit);
         if (doQuit){
             al_unlock_mutex(globalQuit);
@@ -267,9 +246,38 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
             debug(" ..image %p\n", image);
         }
     }
+}
+
+vector<string> getFiles(){
+    ALLEGRO_FS_ENTRY * here = al_create_fs_entry(".");
+    al_open_directory(here);
+    ALLEGRO_FS_ENTRY * file = al_read_directory(here);
+    vector<string> files;
+    while (file != NULL){
+        al_lock_mutex(globalQuit);
+        if (doQuit){
+            al_unlock_mutex(globalQuit);
+            break;
+        }
+        al_unlock_mutex(globalQuit);
+
+        debug("Entry %s\n", al_get_fs_entry_name(file));
+        files.push_back(al_get_fs_entry_name(file));
+        al_destroy_fs_entry(file);
+        file = al_read_directory(here);
+    }
 
     al_close_directory(here);
     al_destroy_fs_entry(here);
+
+    return files;
+}
+
+void * loadImages(ALLEGRO_THREAD * self, void * data){
+    ALLEGRO_EVENT_SOURCE * events = (ALLEGRO_EVENT_SOURCE*) data;
+    vector<string> files = getFiles();
+    std::sort(files.begin(), files.end());
+    loadFiles(files, events);
 
     return NULL;
 }
