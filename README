@@ -1,0 +1,18 @@
+Simple and fast image viewer. Built with Allegro5 http://liballeg.org
+
+Build:
+
+    $ make
+
+Run the viewer in a directory with pictures in it and they will be displayed as thumbnails in the bottom section. The top section will display the currently selected picture.
+
+    $ viewer
+
+Pass -r to make the viewer find files in sub-directories.
+
+    $ viewer -r
+
+Keys:
+  enter - show the current picture as large as possible. press enter again to go back
+  left/right/up/down - navigate the thumbnails
+  esc - quit
