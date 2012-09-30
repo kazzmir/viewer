@@ -14,6 +14,7 @@ using std::vector;
 using std::string;
 
 const int VIEW_TYPE = ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W');
+const int PERCENT_TYPE = ALLEGRO_GET_EVENT_TYPE('P', 'R', 'C', 'T');
 
 // #define debug(...) printf(__VA_ARGS__)
 #define debug(...)
@@ -45,7 +46,8 @@ public:
     thumbnailWidthSpace(4),
     thumbnailHeightSpace(4),
     show(0),
-    scroll(0){
+    scroll(0),
+    percent(0){
     }
 
     int maxThumbnails(ALLEGRO_DISPLAY * display) const {
@@ -212,18 +214,33 @@ public:
 
     int show;
     int scroll;
+
+    /* percent of files searched */
+    int percent;
+
     vector<Image*> images;
 };
 
 static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * events){
+    double percent = 0;
     al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
-    for (vector<string>::const_iterator it = files.begin(); it != files.end(); it++){
+    int count = 0;
+    for (vector<string>::const_iterator it = files.begin(); it != files.end(); it++, count++){
         al_lock_mutex(globalQuit);
         if (doQuit){
             al_unlock_mutex(globalQuit);
             break;
         }
         al_unlock_mutex(globalQuit);
+
+        double now = (double)count / (double) files.size() * 100;
+        if (now - percent >= 1){
+            ALLEGRO_EVENT event;
+            event.user.type = PERCENT_TYPE;
+            event.user.data1 = (intptr_t) (int)now;
+            al_emit_user_event(events, &event, NULL);
+            percent = now;
+        }
 
         ALLEGRO_BITMAP * image = al_load_bitmap(it->c_str());
         if (image != NULL){
@@ -247,6 +264,14 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
             al_emit_user_event(events, &event, NULL);
             debug(" ..image %p\n", image);
         }
+    }
+
+    /* Output 100% at the end */
+    {
+        ALLEGRO_EVENT event;
+        event.user.type = PERCENT_TYPE;
+        event.user.data1 = (intptr_t) 100;
+        al_emit_user_event(events, &event, NULL);
     }
 }
 
@@ -343,6 +368,12 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
                               px, py, pw, ph, 0);
 
         al_draw_text(font, al_map_rgb_f(1, 1, 1), al_get_display_width(display) / 2, top - al_get_font_line_height(font) - 1, ALLEGRO_ALIGN_CENTRE, image->filename.c_str()); 
+    }
+
+    if (view.percent < 100){
+        std::ostringstream number;
+        number << "Searching " << view.percent << "%";
+        al_draw_text(font, al_map_rgb_f(1, 1, 1), al_get_display_width(display) - 1, 1, ALLEGRO_ALIGN_RIGHT, number.str().c_str());
     }
 
     int x = view.thumbnailWidthSpace;
@@ -733,6 +764,10 @@ int main(int argc, char ** argv){
                 if (view.images[view.show]->image == NULL){
                     view.images[view.show]->image = al_load_bitmap(view.images[view.show]->filename.c_str());
                 }
+                draw = true;
+            } else if (event.type == PERCENT_TYPE){
+                int percent = (int) event.user.data1;
+                view.percent = percent;
                 draw = true;
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                 al_acknowledge_resize(event.display.source);
