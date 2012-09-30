@@ -13,6 +13,8 @@ Pass -r to make the viewer find files in sub-directories.
     $ viewer -r
 
 Keys:
-  enter - show the current picture as large as possible. press enter again to go back
-  left/right/up/down - navigate the thumbnails
-  esc - quit
+  enter: show the current picture as large as possible. press enter again to go back
+  left/right/up/down: navigate the thumbnails
+  esc: quit
+  -: smaller thumbnails
+  =: larger thumbnails
