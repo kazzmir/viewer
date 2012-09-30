@@ -250,8 +250,12 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
     }
 }
 
-vector<string> getFiles(){
-    ALLEGRO_FS_ENTRY * here = al_create_fs_entry(".");
+struct LoadImagesStuff{
+    ALLEGRO_EVENT_SOURCE * events;
+    bool recursive;
+};
+
+vector<string> getFiles(bool recursive, ALLEGRO_FS_ENTRY * here){
     al_open_directory(here);
     ALLEGRO_FS_ENTRY * file = al_read_directory(here);
     vector<string> files;
@@ -264,20 +268,30 @@ vector<string> getFiles(){
         al_unlock_mutex(globalQuit);
 
         debug("Entry %s\n", al_get_fs_entry_name(file));
-        files.push_back(al_get_fs_entry_name(file));
+        bool directory = al_get_fs_entry_mode(file) & ALLEGRO_FILEMODE_ISDIR;
+        if (directory && recursive){
+            vector<string> more = getFiles(recursive, file);
+            files.insert(files.end(), more.begin(), more.end());
+        } else {
+            files.push_back(al_get_fs_entry_name(file));
+        }
         al_destroy_fs_entry(file);
         file = al_read_directory(here);
     }
-
     al_close_directory(here);
-    al_destroy_fs_entry(here);
 
     return files;
 }
 
 void * loadImages(ALLEGRO_THREAD * self, void * data){
-    ALLEGRO_EVENT_SOURCE * events = (ALLEGRO_EVENT_SOURCE*) data;
-    vector<string> files = getFiles();
+    LoadImagesStuff * stuff = (LoadImagesStuff*) data;
+    ALLEGRO_EVENT_SOURCE * events = stuff->events;
+    bool recursive = stuff->recursive;
+
+    ALLEGRO_FS_ENTRY * here = al_create_fs_entry(".");
+    vector<string> files = getFiles(recursive, here);
+    al_destroy_fs_entry(here);
+
     std::sort(files.begin(), files.end());
     loadFiles(files, events);
 
@@ -503,7 +517,15 @@ int main(int argc, char ** argv){
     redraw(display, font, view);
     al_flip_display();
 
-    ALLEGRO_THREAD * imageThread = al_create_thread(loadImages, &imageSource);
+    /* Ok to put on the stack since we are in main */
+    LoadImagesStuff stuff;
+    stuff.events = &imageSource;
+    stuff.recursive = false;
+    if (argc > 1 && (string(argv[1]) == "-r" ||
+                     string(argv[1]) == "-R")){
+        stuff.recursive = true;
+    }
+    ALLEGRO_THREAD * imageThread = al_create_thread(loadImages, &stuff);
     al_start_thread(imageThread);
 
     ALLEGRO_EVENT event;
