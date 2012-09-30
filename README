@@ -14,7 +14,7 @@ Pass -r to make the viewer find files in sub-directories.
 
 Keys:
   enter: show the current picture as large as possible. press enter again to go back
-  left/right/up/down: navigate the thumbnails
+  left/right/up/down/pgup/pgdown: navigate the thumbnails
   esc: quit
   -: smaller thumbnails
   =: larger thumbnails
