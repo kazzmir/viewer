@@ -13,6 +13,8 @@
 using std::vector;
 using std::string;
 
+const int VIEW_TYPE = ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W');
+
 // #define debug(...) printf(__VA_ARGS__)
 #define debug(...)
 
@@ -226,7 +228,7 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
         ALLEGRO_BITMAP * image = al_load_bitmap(it->c_str());
         if (image != NULL){
             ALLEGRO_EVENT event;
-            event.user.type = ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W');
+            event.user.type = VIEW_TYPE;
             double scale = 1;
             double scaleWidth = 80.0 / al_get_bitmap_width(image);
             double scaleHeight = 80.0 / al_get_bitmap_height(image);
@@ -702,7 +704,7 @@ int main(int argc, char ** argv){
                         break;
                     }
                 }
-            } else if (event.type == ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W')){
+            } else if (event.type == VIEW_TYPE){
                 debug("Got image %p\n", event.user.data1);
                 Image * image = (Image*) event.user.data1;
                 view.images.push_back(image);
