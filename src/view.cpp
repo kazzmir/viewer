@@ -221,6 +221,37 @@ public:
     vector<Image*> images;
 };
 
+static ALLEGRO_BITMAP * create_thumbnail(ALLEGRO_BITMAP * image){
+    double scale = 1;
+
+    /* Create thumbnails at 80x80. This is larger than the default
+     * thumbnail size that the user will see so it gives them a chance
+     * to increase the thumbnail size without messing up the images too much.
+     * Once the thumbnail size is increased beyond 80x80 (with +/-) it will
+     * start to look blocky.
+     */
+    double scaleWidth = 80.0 / al_get_bitmap_width(image);
+    double scaleHeight = 80.0 / al_get_bitmap_height(image);
+
+    if (scaleHeight < scaleWidth){
+        scale = scaleHeight;
+    } else {
+        scale = scaleWidth;
+    }
+    ALLEGRO_BITMAP * thumbnail = al_create_bitmap(al_get_bitmap_width(image) * scale, al_get_bitmap_height(image) * scale);
+    al_set_target_bitmap(thumbnail);
+    al_clear_to_color(al_map_rgba_f(0, 0, 0, 0));
+    al_draw_scaled_bitmap(image,
+                          0, 0,
+                          al_get_bitmap_width(image),
+                          al_get_bitmap_height(image),
+                          0, 0,
+                          al_get_bitmap_width(thumbnail),
+                          al_get_bitmap_height(thumbnail),
+                          0);
+    return thumbnail;
+}
+
 static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * events){
     double percent = 0;
     al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
@@ -246,23 +277,12 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
         if (image != NULL){
             ALLEGRO_EVENT event;
             event.user.type = VIEW_TYPE;
-            double scale = 1;
-            double scaleWidth = 80.0 / al_get_bitmap_width(image);
-            double scaleHeight = 80.0 / al_get_bitmap_height(image);
-            if (scaleHeight < scaleWidth){
-                scale = scaleHeight;
-            } else {
-                scale = scaleWidth;
-            }
-            ALLEGRO_BITMAP * thumbnail = al_create_bitmap(al_get_bitmap_width(image) * scale, al_get_bitmap_height(image) * scale);
-            al_set_target_bitmap(thumbnail);
-            al_clear_to_color(al_map_rgba_f(0, 0, 0, 0));
-            al_draw_scaled_bitmap(image, 0, 0, al_get_bitmap_width(image), al_get_bitmap_height(image), 0, 0, al_get_bitmap_width(thumbnail), al_get_bitmap_height(thumbnail), 0);
+            debug(" ..image %p\n", image);
+            ALLEGRO_BITMAP * thumbnail = create_thumbnail(image);
             al_destroy_bitmap(image);
             Image * store = new Image(thumbnail, *it);
             event.user.data1 = (intptr_t) store;
             al_emit_user_event(events, &event, NULL);
-            debug(" ..image %p\n", image);
         }
     }
 
