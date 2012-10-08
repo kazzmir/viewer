@@ -451,7 +451,9 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
 ALLEGRO_FONT * getFont(){
     std::ostringstream out;
     ALLEGRO_PATH * path = al_get_standard_path(ALLEGRO_EXENAME_PATH);
-    al_remove_path_component(path, -1);
+    debug("Original path is '%s'\n", al_path_cstr(path, ALLEGRO_NATIVE_PATH_SEP));
+    al_set_path_filename(path, NULL);
+    // al_remove_path_component(path, -1);
     out << al_path_cstr(path, ALLEGRO_NATIVE_PATH_SEP) << "/" << "arial.ttf";
     al_destroy_path(path);
     debug("Path is %s\n", out.str().c_str());
@@ -558,6 +560,7 @@ int main(int argc, char ** argv){
     ALLEGRO_FONT * font = getFont();
     if (font == NULL){
         printf("Could not load font\n");
+        al_destroy_mutex(globalQuit);
         return -1;
     }
 
