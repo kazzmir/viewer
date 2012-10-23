@@ -54,26 +54,57 @@ public:
 
     class Mailbox{
     public:
-        string getFile(){
-            return "";
+        Mailbox(const string & file):
+        file(file),
+        bitmap(NULL){
+            mutex = al_create_mutex();
+        }
+
+        ~Mailbox(){
+            al_destroy_mutex(mutex);
+        }
+
+        const string getFile() const {
+            return file;
         }
 
         void setBitmap(ALLEGRO_BITMAP * bitmap){
+            al_lock_mutex(mutex);
+            this->bitmap = bitmap;
+            al_unlock_mutex(mutex);
         }
+
+        ALLEGRO_BITMAP * getBitmap(){
+            ALLEGRO_BITMAP * out = NULL;
+            al_lock_mutex(mutex);
+            out = this->bitmap;
+            al_unlock_mutex(mutex);
+            return out;
+        }
+
+        const string file;
+        ALLEGRO_MUTEX * mutex;
+        ALLEGRO_BITMAP * bitmap;
     };
 
     /* Loads threads in the background */
     class Worker{
     public:
         Worker():
-        isAlive(true){
+        isAlive(true),
+        busy(false){
             aliveMutex = al_create_mutex();
+            busyMutex = al_create_mutex();
+            mailboxMutex = al_create_mutex();
+            thread = NULL;
         }
 
         ~Worker(){
             kill();
             al_join_thread(thread, NULL);
             al_destroy_mutex(aliveMutex);
+            al_destroy_mutex(busyMutex);
+            al_destroy_mutex(mailboxMutex);
         }
 
         void start(){
@@ -82,8 +113,13 @@ public:
         }
 
         bool isAlive;
+        bool busy;
         ALLEGRO_MUTEX * aliveMutex;
+        ALLEGRO_MUTEX * busyMutex;
+        ALLEGRO_MUTEX * mailboxMutex;
         ALLEGRO_THREAD * thread;
+
+        vector<Mailbox*> mailboxes;
 
         void load(Mailbox * box){
             al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
@@ -93,15 +129,38 @@ public:
 
         Mailbox * nextMailbox(){
             while (alive()){
+                al_lock_mutex(mailboxMutex);
+                if (mailboxes.size() > 0){
+                    Mailbox * front = mailboxes[0];
+                    mailboxes.erase(mailboxes.begin());
+                    al_unlock_mutex(mailboxMutex);
+                    return front;
+                }
+                al_unlock_mutex(mailboxMutex);
                 al_rest(0.001);
             }
             return NULL;
         }
 
+        void addWork(Mailbox * box){
+            /* Add new work to the front of the queue because its the
+             * most important.
+             */
+            al_lock_mutex(mailboxMutex);
+            mailboxes.insert(mailboxes.begin(), box);
+            al_unlock_mutex(mailboxMutex);
+        }
+
         void setBusy(){
+            al_lock_mutex(busyMutex);
+            busy = true;
+            al_unlock_mutex(busyMutex);
         }
 
         void setIdle(){
+            al_lock_mutex(busyMutex);
+            busy = false;
+            al_unlock_mutex(busyMutex);
         }
 
         bool alive(){
@@ -116,6 +175,14 @@ public:
             al_lock_mutex(aliveMutex);
             isAlive = false;
             al_unlock_mutex(aliveMutex);
+        }
+
+        bool isBusy(){
+            bool out = false;
+            al_lock_mutex(busyMutex);
+            out = busy;
+            al_unlock_mutex(busyMutex);
+            return out;
         }
 
         void work(){
@@ -154,10 +221,59 @@ public:
     }
 
     ALLEGRO_BITMAP * get(const string & filename){
+        if (filename == currentFile && currentBitmap != NULL){
+            return currentBitmap;
+        }
+
+        for (vector<Mailbox*>::iterator it = mailboxes.begin(); it != mailboxes.end(); it++){
+            Mailbox * box = *it;
+            if (box->getFile() == filename){
+                ALLEGRO_BITMAP * use = box->getBitmap();
+                if (use != NULL){
+                    if (currentBitmap != NULL){
+                        /* We found a mailbox that was done loading so
+                         * convert the loaded bitmap to a video one
+                         * and destroy the mailbox.
+                         */
+
+                        al_destroy_bitmap(currentBitmap);
+                        currentBitmap = use;
+                        al_convert_bitmap(use);
+                        delete box;
+                        mailboxes.erase(it);
+                        return currentBitmap;
+                    }
+                }
+            }
+        }
+
+        /* No matching mailboxes so make a new one and add it to a worker */
+        Mailbox * box = new Mailbox(filename);
+        mailboxes.push_back(box);
+
+        for (vector<Worker*>::iterator it = workers.begin(); it != workers.end(); it++){
+            Worker * worker = *it;
+            if (! worker->isBusy()){
+                worker->addWork(box);
+                break;
+            }
+        }
+
+        /* No idle mailboxes, so choose one at random */
+        if (workers.size() > 0){
+            /* FIXME: choose a random one */
+            Worker * worker = workers[0];
+            worker->addWork(box);
+        }
+
         return NULL;
     }
 
     vector<Worker*> workers;
+    vector<Mailbox*> mailboxes;
+
+    string currentFile;
+    ALLEGRO_BITMAP * currentBitmap;
 };
 
 class View{
