@@ -234,34 +234,56 @@ public:
         }
     }
 
+    /* Delete any mailboxes that are complete but dont match the current file */
+    void cleanOldMailboxes(const string & filename){
+        for (vector<Mailbox*>::iterator it = mailboxes.begin(); it != mailboxes.end(); /**/){
+            Mailbox * box = *it;
+            if (box->getFile() != filename && box->getBitmap() != NULL){
+                al_destroy_bitmap(box->getBitmap());
+                delete box;
+                it = mailboxes.erase(it);
+            } else {
+                it++;
+            }
+        }
+    }
+
     ALLEGRO_BITMAP * get(const string & filename){
         if (filename == currentFile && currentBitmap != NULL){
             return currentBitmap;
         }
+
+        cleanOldMailboxes(filename);
 
         for (vector<Mailbox*>::iterator it = mailboxes.begin(); it != mailboxes.end(); it++){
             Mailbox * box = *it;
             if (box->getFile() == filename){
                 ALLEGRO_BITMAP * use = box->getBitmap();
                 if (use != NULL){
+                    /* We found a mailbox that was done loading so
+                     * convert the loaded bitmap to a video one
+                     * and destroy the mailbox.
+                     */
                     if (currentBitmap != NULL){
-                        /* We found a mailbox that was done loading so
-                         * convert the loaded bitmap to a video one
-                         * and destroy the mailbox.
-                         */
-
                         al_destroy_bitmap(currentBitmap);
-                        currentBitmap = use;
-                        al_convert_bitmap(use);
-                        delete box;
-                        mailboxes.erase(it);
-                        return currentBitmap;
                     }
+
+                    currentBitmap = use;
+                    /* Convert it from memory to video */
+                    al_convert_bitmap(use);
+                    delete box;
+                    mailboxes.erase(it);
+                    return currentBitmap;
+                } else {
+                    /* Otherwise theres already a box for this bitmap so we
+                     * must be waiting for it to complete.
+                     */
+                    return NULL;
                 }
             }
         }
 
-        /* No matching mailboxes so make a new one and add it to a worker */
+        /* No matching mailboxes so make a new one and add it to the task list */
         Mailbox * box = new Mailbox(filename);
         mailboxes.push_back(box);
 
