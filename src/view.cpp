@@ -146,10 +146,8 @@ public:
     public:
         Worker(TaskList & tasks):
         isAlive(true),
-        busy(false),
         tasks(tasks){
             aliveMutex = al_create_mutex();
-            busyMutex = al_create_mutex();
             thread = NULL;
         }
 
@@ -157,7 +155,6 @@ public:
             kill();
             al_join_thread(thread, NULL);
             al_destroy_mutex(aliveMutex);
-            al_destroy_mutex(busyMutex);
         }
 
         void start(){
@@ -166,9 +163,7 @@ public:
         }
 
         bool isAlive;
-        bool busy;
         ALLEGRO_MUTEX * aliveMutex;
-        ALLEGRO_MUTEX * busyMutex;
         ALLEGRO_THREAD * thread;
         TaskList & tasks;
 
@@ -189,18 +184,6 @@ public:
             return NULL;
         }
 
-        void setBusy(){
-            al_lock_mutex(busyMutex);
-            busy = true;
-            al_unlock_mutex(busyMutex);
-        }
-
-        void setIdle(){
-            al_lock_mutex(busyMutex);
-            busy = false;
-            al_unlock_mutex(busyMutex);
-        }
-
         bool alive(){
             bool out = false;
             al_lock_mutex(aliveMutex);
@@ -215,23 +198,13 @@ public:
             al_unlock_mutex(aliveMutex);
         }
 
-        bool isBusy(){
-            bool out = false;
-            al_lock_mutex(busyMutex);
-            out = busy;
-            al_unlock_mutex(busyMutex);
-            return out;
-        }
-
         void work(){
             while (alive()){
                 /* nextMailbox will sleep until theres something ready */
                 Task * next = nextTask();
                 /* We might have died while waiting for a mailbox */
                 if (alive()){
-                    setBusy();
                     load(next->getBox());
-                    setIdle();
                 }
 
                 /* We are done with the task */
