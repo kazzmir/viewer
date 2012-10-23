@@ -38,6 +38,128 @@ static bool sortImage(Image * a, Image * b){
     return a->filename < b->filename;
 }
 
+/* Loads images in the background and returns the current image when its available.
+ *
+ * There should be N worker threads, probably 2 or 3, that just loop waiting to be
+ * given work. The work will be in the form of a filename that they should use to
+ * load a bitmap with al_load_bitmap. This will return a memory bitmap that will be
+ * sent back to the manager.
+ *
+ * The manager should create a mailbox that contains a mutex and a boolean that says
+ * when the mailbox is full. The worker will place the memory bitmap in the mailbox.
+ */
+class ImageManager{
+public:
+    static const int MAX_WORKERS = 2;
+
+    class Mailbox{
+    public:
+        string getFile(){
+            return "";
+        }
+
+        void setBitmap(ALLEGRO_BITMAP * bitmap){
+        }
+    };
+
+    /* Loads threads in the background */
+    class Worker{
+    public:
+        Worker():
+        isAlive(true){
+            aliveMutex = al_create_mutex();
+        }
+
+        ~Worker(){
+            kill();
+            al_join_thread(thread, NULL);
+            al_destroy_mutex(aliveMutex);
+        }
+
+        void start(){
+            thread = al_create_thread(run, this);
+            al_start_thread(thread);
+        }
+
+        bool isAlive;
+        ALLEGRO_MUTEX * aliveMutex;
+        ALLEGRO_THREAD * thread;
+
+        void load(Mailbox * box){
+            al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
+            ALLEGRO_BITMAP * out = al_load_bitmap(box->getFile().c_str());
+            box->setBitmap(out);
+        }
+
+        Mailbox * nextMailbox(){
+            while (alive()){
+                al_rest(0.001);
+            }
+            return NULL;
+        }
+
+        void setBusy(){
+        }
+
+        void setIdle(){
+        }
+
+        bool alive(){
+            bool out = false;
+            al_lock_mutex(aliveMutex);
+            out = isAlive;
+            al_unlock_mutex(aliveMutex);
+            return out;
+        }
+
+        void kill(){
+            al_lock_mutex(aliveMutex);
+            isAlive = false;
+            al_unlock_mutex(aliveMutex);
+        }
+
+        void work(){
+            while (alive()){
+                /* nextMailbox will sleep until theres something ready */
+                Mailbox * next = nextMailbox();
+                /* We might have died while waiting for a mailbox */
+                if (alive()){
+                    setBusy();
+                    load(next);
+                    setIdle();
+                }
+            }
+        }
+
+        static void * run(ALLEGRO_THREAD * thread, void * self){
+            Worker * worker = (Worker*) self;
+            worker->work();
+            return NULL;
+        }
+    };
+
+    ImageManager(){
+        for (int i = 0; i < MAX_WORKERS; i++){
+            Worker * worker = new Worker();
+            worker->start();
+            workers.push_back(worker);
+        }
+    }
+
+    ~ImageManager(){
+        for (vector<Worker*>::iterator it = workers.begin(); it != workers.end(); it++){
+            Worker * worker = *it;
+            delete worker;
+        }
+    }
+
+    ALLEGRO_BITMAP * get(const string & filename){
+        return NULL;
+    }
+
+    vector<Worker*> workers;
+};
+
 class View{
 public:
     View():
