@@ -13,8 +13,14 @@
 using std::vector;
 using std::string;
 
+/* Event for when a new thumbnail is loaded */
 const int VIEW_TYPE = ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W');
+
+/* Event for when a percent of the files searched is incremented by at least 1 */
 const int PERCENT_TYPE = ALLEGRO_GET_EVENT_TYPE('P', 'R', 'C', 'T');
+
+/* Event for when an image request is done loading */
+const int LOAD_TYPE = ALLEGRO_GET_EVENT_TYPE('L', 'O', 'A', 'D');
 
 // #define debug(...) printf(__VA_ARGS__)
 #define debug(...)
@@ -54,8 +60,9 @@ public:
 
     class Mailbox{
     public:
-        Mailbox(const string & file):
+        Mailbox(const string & file, ALLEGRO_EVENT_SOURCE * events):
         file(file),
+        events(events),
         bitmap(NULL){
             mutex = al_create_mutex();
         }
@@ -83,6 +90,7 @@ public:
         }
 
         const string file;
+        ALLEGRO_EVENT_SOURCE * events;
         ALLEGRO_MUTEX * mutex;
         ALLEGRO_BITMAP * bitmap;
     };
@@ -219,7 +227,8 @@ public:
         }
     };
 
-    ImageManager(){
+    ImageManager(ALLEGRO_EVENT_SOURCE * events):
+    events(events){
         for (int i = 0; i < MAX_WORKERS; i++){
             Worker * worker = new Worker(tasks);
             worker->start();
@@ -284,7 +293,7 @@ public:
         }
 
         /* No matching mailboxes so make a new one and add it to the task list */
-        Mailbox * box = new Mailbox(filename);
+        Mailbox * box = new Mailbox(filename, events);
         mailboxes.push_back(box);
 
         tasks.addTask(new Task(box));
@@ -298,6 +307,7 @@ public:
 
     string currentFile;
     ALLEGRO_BITMAP * currentBitmap;
+    ALLEGRO_EVENT_SOURCE * events;
 };
 
 class View{
