@@ -87,15 +87,69 @@ public:
         ALLEGRO_BITMAP * bitmap;
     };
 
+    class Task{
+    public:
+        Task(Mailbox * box):
+        box(box){
+        }
+
+        Mailbox * getBox(){
+            return box;
+        }
+
+        Mailbox * box;
+    };
+
+    /* Contains a list of tasks that can be taken off by workers */
+    class TaskList{
+    public:
+        TaskList(){
+            mutex = al_create_mutex();
+        }
+
+        ~TaskList(){
+            al_destroy_mutex(mutex);
+            for (vector<Task*>::iterator it = tasks.begin(); it != tasks.end(); it++){
+                delete *it;
+            }
+        }
+
+        Task * getTask(){
+            Task * out = NULL;
+            al_lock_mutex(mutex);
+            if (tasks.size() > 0){
+                out = tasks[0];
+                tasks.erase(tasks.begin());
+            }
+            al_unlock_mutex(mutex);
+            return out;
+        }
+
+        /* Adds a task to the front of the work queue */
+        void addTask(Task * task){
+            al_lock_mutex(mutex);
+            /* We actually don't care about old tasks so just erase them */
+            for (vector<Task*>::iterator it = tasks.begin(); it != tasks.end(); it++){
+                delete *it;
+            }
+            tasks.clear();
+            tasks.insert(tasks.begin(), task);
+            al_unlock_mutex(mutex);
+        }
+
+        ALLEGRO_MUTEX * mutex;
+        vector<Task*> tasks;
+    };
+
     /* Loads threads in the background */
     class Worker{
     public:
-        Worker():
+        Worker(TaskList & tasks):
         isAlive(true),
-        busy(false){
+        busy(false),
+        tasks(tasks){
             aliveMutex = al_create_mutex();
             busyMutex = al_create_mutex();
-            mailboxMutex = al_create_mutex();
             thread = NULL;
         }
 
@@ -104,7 +158,6 @@ public:
             al_join_thread(thread, NULL);
             al_destroy_mutex(aliveMutex);
             al_destroy_mutex(busyMutex);
-            al_destroy_mutex(mailboxMutex);
         }
 
         void start(){
@@ -116,10 +169,8 @@ public:
         bool busy;
         ALLEGRO_MUTEX * aliveMutex;
         ALLEGRO_MUTEX * busyMutex;
-        ALLEGRO_MUTEX * mailboxMutex;
         ALLEGRO_THREAD * thread;
-
-        vector<Mailbox*> mailboxes;
+        TaskList & tasks;
 
         void load(Mailbox * box){
             al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
@@ -127,28 +178,15 @@ public:
             box->setBitmap(out);
         }
 
-        Mailbox * nextMailbox(){
+        Task * nextTask(){
             while (alive()){
-                al_lock_mutex(mailboxMutex);
-                if (mailboxes.size() > 0){
-                    Mailbox * front = mailboxes[0];
-                    mailboxes.erase(mailboxes.begin());
-                    al_unlock_mutex(mailboxMutex);
-                    return front;
+                Task * next = tasks.getTask();
+                if (next != NULL){
+                    return next;
                 }
-                al_unlock_mutex(mailboxMutex);
                 al_rest(0.001);
             }
             return NULL;
-        }
-
-        void addWork(Mailbox * box){
-            /* Add new work to the front of the queue because its the
-             * most important.
-             */
-            al_lock_mutex(mailboxMutex);
-            mailboxes.insert(mailboxes.begin(), box);
-            al_unlock_mutex(mailboxMutex);
         }
 
         void setBusy(){
@@ -188,13 +226,16 @@ public:
         void work(){
             while (alive()){
                 /* nextMailbox will sleep until theres something ready */
-                Mailbox * next = nextMailbox();
+                Task * next = nextTask();
                 /* We might have died while waiting for a mailbox */
                 if (alive()){
                     setBusy();
-                    load(next);
+                    load(next->getBox());
                     setIdle();
                 }
+
+                /* We are done with the task */
+                delete next;
             }
         }
 
@@ -207,7 +248,7 @@ public:
 
     ImageManager(){
         for (int i = 0; i < MAX_WORKERS; i++){
-            Worker * worker = new Worker();
+            Worker * worker = new Worker(tasks);
             worker->start();
             workers.push_back(worker);
         }
@@ -251,26 +292,14 @@ public:
         Mailbox * box = new Mailbox(filename);
         mailboxes.push_back(box);
 
-        for (vector<Worker*>::iterator it = workers.begin(); it != workers.end(); it++){
-            Worker * worker = *it;
-            if (! worker->isBusy()){
-                worker->addWork(box);
-                break;
-            }
-        }
-
-        /* No idle mailboxes, so choose one at random */
-        if (workers.size() > 0){
-            /* FIXME: choose a random one */
-            Worker * worker = workers[0];
-            worker->addWork(box);
-        }
+        tasks.addTask(new Task(box));
 
         return NULL;
     }
 
     vector<Worker*> workers;
     vector<Mailbox*> mailboxes;
+    TaskList tasks;
 
     string currentFile;
     ALLEGRO_BITMAP * currentBitmap;
