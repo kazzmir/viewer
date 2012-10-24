@@ -798,41 +798,44 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
 
     view.updateBitmaps(display);
 
-    if (view.images.size() > view.show && view.getCurrentBitmap() != NULL){
-        ALLEGRO_BITMAP * image = view.getCurrentBitmap();
+    if (view.images.size() > view.show){
+        ALLEGRO_BITMAP * info = view.images[view.show]->thumbnail;
         std::ostringstream number;
         number << "Image " << (view.show + 1) << " / " << view.images.size();
         al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
         number.str("");
-        number << al_get_bitmap_width(image) << " x " << al_get_bitmap_height(image);
+        number << al_get_bitmap_width(info) << " x " << al_get_bitmap_height(info);
         al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1 + al_get_font_line_height(font) + 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
         // double widthRatio = (double) al_get_display_width(display) / al_get_bitmap_width(image->image);
         // double heightRatio = (double) al_get_display_height(display) / al_get_bitmap_height(image->image);
         
-        int px = al_get_display_width(display) / 2 - al_get_bitmap_width(image) / 2;
-        int py = top / 2 - al_get_bitmap_height(image) / 2;
-        int pw = al_get_bitmap_width(image);
-        int ph = al_get_bitmap_height(image);
+        if (view.getCurrentBitmap() != NULL){
+            ALLEGRO_BITMAP * image = view.getCurrentBitmap();
+            int px = al_get_display_width(display) / 2 - al_get_bitmap_width(image) / 2;
+            int py = top / 2 - al_get_bitmap_height(image) / 2;
+            int pw = al_get_bitmap_width(image);
+            int ph = al_get_bitmap_height(image);
 
-        double expandHeight = (top - al_get_font_line_height(font) - 10) / (double) al_get_bitmap_height(image);
-        double expandWidth = (al_get_display_width(display) - 10) / (double) al_get_bitmap_width(image);
+            double expandHeight = (top - al_get_font_line_height(font) - 10) / (double) al_get_bitmap_height(image);
+            double expandWidth = (al_get_display_width(display) - 10) / (double) al_get_bitmap_width(image);
 
-        double expand = 1;
-        if (expandHeight < expandWidth){
-            expand = expandHeight;
-        } else {
-            expand = expandWidth;
+            double expand = 1;
+            if (expandHeight < expandWidth){
+                expand = expandHeight;
+            } else {
+                expand = expandWidth;
+            }
+            int newWidth = al_get_bitmap_width(image) * expand;
+            int newHeight = al_get_bitmap_height(image) * expand;
+
+            px = al_get_display_width(display) / 2 - newWidth / 2;
+            py = (top - al_get_font_line_height(font)) / 2 - newHeight / 2;
+            pw = newWidth;
+            ph = newHeight;
+
+            al_draw_scaled_bitmap(image, 0, 0, al_get_bitmap_width(image), al_get_bitmap_height(image),
+                                  px, py, pw, ph, 0);
         }
-        int newWidth = al_get_bitmap_width(image) * expand;
-        int newHeight = al_get_bitmap_height(image) * expand;
-
-        px = al_get_display_width(display) / 2 - newWidth / 2;
-        py = (top - al_get_font_line_height(font)) / 2 - newHeight / 2;
-        pw = newWidth;
-        ph = newHeight;
-
-        al_draw_scaled_bitmap(image, 0, 0, al_get_bitmap_width(image), al_get_bitmap_height(image),
-                              px, py, pw, ph, 0);
 
         al_draw_text(font, al_map_rgb_f(1, 1, 1), al_get_display_width(display) / 2, top - al_get_font_line_height(font) - 1, ALLEGRO_ALIGN_CENTRE, view.getCurrentFilename().c_str());
     }
