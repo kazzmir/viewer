@@ -31,12 +31,12 @@ bool doQuit = false;
 struct Image{
     Image(ALLEGRO_BITMAP * thumbnail, const string & name):
         thumbnail(thumbnail),
-        image(NULL),
+        // image(NULL),
         filename(name){
         }
 
     ALLEGRO_BITMAP * thumbnail;
-    ALLEGRO_BITMAP * image;
+    // ALLEGRO_BITMAP * image;
     string filename;
 };
 
@@ -447,10 +447,12 @@ public:
 
     void move(ALLEGRO_DISPLAY * display, int much){
         if (images.size() > 0){
+            /*
             if (images[show]->image != NULL){
                 al_destroy_bitmap(images[show]->image);
                 images[show]->image = NULL;
             }
+            */
             show += much;
             if (show < 0){
                 show = 0;
@@ -851,16 +853,16 @@ struct Position{
     int endX2, endY2;
 };
 
-Position computePosition(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, Image * image){
+Position computePosition(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, ALLEGRO_BITMAP * image){
     Position position;
 
-    int pw = al_get_bitmap_width(image->image);
-    int ph = al_get_bitmap_height(image->image);
+    int pw = al_get_bitmap_width(image);
+    int ph = al_get_bitmap_height(image);
 
     double top = al_get_display_height(display) / 3.0;
 
-    double expandHeight = (top - al_get_font_line_height(font) - 10) / (double) al_get_bitmap_height(image->image);
-    double expandWidth = (al_get_display_width(display) - 10) / (double) al_get_bitmap_width(image->image);
+    double expandHeight = (top - al_get_font_line_height(font) - 10) / (double) al_get_bitmap_height(image);
+    double expandWidth = (al_get_display_width(display) - 10) / (double) al_get_bitmap_width(image);
 
     double expand = 1;
     if (expandHeight < expandWidth){
@@ -868,8 +870,8 @@ Position computePosition(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, Image *
     } else {
         expand = expandWidth;
     }
-    int newWidth = al_get_bitmap_width(image->image) * expand;
-    int newHeight = al_get_bitmap_height(image->image) * expand;
+    int newWidth = al_get_bitmap_width(image) * expand;
+    int newHeight = al_get_bitmap_height(image) * expand;
 
     int px = al_get_display_width(display) / 2 - newWidth / 2;
     int py = (top - al_get_font_line_height(font)) / 2 - newHeight / 2;
@@ -881,11 +883,11 @@ Position computePosition(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, Image *
     position.startX2 = px + pw;
     position.startY2 = py + ph;
 
-    expandWidth = (double) (al_get_display_width(display) - 10) / al_get_bitmap_width(image->image);
-    expandHeight = (double) (al_get_display_height(display) - 10) / al_get_bitmap_height(image->image);
+    expandWidth = (double) (al_get_display_width(display) - 10) / al_get_bitmap_width(image);
+    expandHeight = (double) (al_get_display_height(display) - 10) / al_get_bitmap_height(image);
 
-    newWidth = al_get_bitmap_width(image->image);
-    newHeight = al_get_bitmap_height(image->image);
+    newWidth = al_get_bitmap_width(image);
+    newHeight = al_get_bitmap_height(image);
     if (expandWidth < 1 || expandHeight < 1){
         double expand = 1;
         if (expandHeight < expandWidth){
@@ -893,8 +895,8 @@ Position computePosition(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, Image *
         } else {
             expand = expandWidth;
         }
-        newWidth = al_get_bitmap_width(image->image) * expand;
-        newHeight = al_get_bitmap_height(image->image) * expand;
+        newWidth = al_get_bitmap_width(image) * expand;
+        newHeight = al_get_bitmap_height(image) * expand;
     }
 
     position.endX1 = al_get_display_width(display) / 2 - newWidth / 2;
@@ -905,7 +907,7 @@ Position computePosition(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, Image *
     return position;
 }
                                     
-void drawCenter(ALLEGRO_DISPLAY * display, Image * image, const Position & position, int steps, int much){
+void drawCenter(ALLEGRO_DISPLAY * display, ALLEGRO_BITMAP * image, const Position & position, int steps, int much){
 
     /* Darken rest of the screen */
     al_set_blender(ALLEGRO_ADD, ALLEGRO_ALPHA, ALLEGRO_INVERSE_ALPHA);
@@ -918,7 +920,7 @@ void drawCenter(ALLEGRO_DISPLAY * display, Image * image, const Position & posit
     int pw = (int)(position.startX2 * (1 - interpolate) + position.endX2 * interpolate - px);
     int py = (int)(position.startY1 * (1 - interpolate) + position.endY1 * interpolate);
     int ph = (int)(position.startY2 * (1 - interpolate) + position.endY2 * interpolate - py);
-    al_draw_scaled_bitmap(image->image, 0, 0, al_get_bitmap_width(image->image), al_get_bitmap_height(image->image),
+    al_draw_scaled_bitmap(image, 0, 0, al_get_bitmap_width(image), al_get_bitmap_height(image),
                           px, py, pw, ph, 0);
 
 }
@@ -1028,10 +1030,18 @@ int main(int argc, char ** argv){
                         if (image != NULL){
                             bool ok = true;
                             bool wait = true;
+
+                            /* Wait for the main image to be loaded */
+                            while (view.getCurrentBitmap() == NULL){
+                                al_rest(0.001);
+                            }
+
+                            ALLEGRO_BITMAP * bitmap = view.getCurrentBitmap();
+
                             ALLEGRO_TIMER * timer = al_create_timer(0.02);
                             al_start_timer(timer);
                             al_register_event_source(queue, al_get_timer_event_source(timer));
-                            Position position = computePosition(display, font, image);
+                            Position position = computePosition(display, font, bitmap);
                             const int steps = 12;
                             int much = 0;
                             while (ok){
@@ -1053,7 +1063,7 @@ int main(int argc, char ** argv){
                                     draw = true;
                                 } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                                     al_acknowledge_resize(event.display.source);
-                                    position = computePosition(display, font, image);
+                                    position = computePosition(display, font, bitmap);
                                     draw = true;
                                 } else if (event.type == ALLEGRO_EVENT_TIMER){
                                     much += 1;
@@ -1065,7 +1075,7 @@ int main(int argc, char ** argv){
 
                                 if (draw){
                                     redraw(display, font, view);
-                                    drawCenter(display, image, position, steps, much);
+                                    drawCenter(display, bitmap, position, steps, much);
                                     al_flip_display();
                                 }
                             }
@@ -1091,13 +1101,13 @@ int main(int argc, char ** argv){
                                         draw = true;
                                     } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                                         al_acknowledge_resize(event.display.source);
-                                        position = computePosition(display, font, image);
+                                        position = computePosition(display, font, bitmap);
                                         draw = true;
                                     }
 
                                     if (draw){
                                         redraw(display, font, view);
-                                        drawCenter(display, image, position, steps, much);
+                                        drawCenter(display, bitmap, position, steps, much);
                                         al_flip_display();
                                     }
                                 }
@@ -1129,13 +1139,13 @@ int main(int argc, char ** argv){
                                     draw = true;
                                 } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                                     al_acknowledge_resize(event.display.source);
-                                    position = computePosition(display, font, image);
+                                    position = computePosition(display, font, bitmap);
                                     draw = true;
                                 }
 
                                 if (draw){
                                     redraw(display, font, view);
-                                    drawCenter(display, image, position, steps, much);
+                                    drawCenter(display, bitmap, position, steps, much);
                                     al_flip_display();
                                 }
                             }
@@ -1168,9 +1178,11 @@ int main(int argc, char ** argv){
                 debug("Got image %p\n", event.user.data1);
                 Image * image = (Image*) event.user.data1;
                 view.images.push_back(image);
+                /*
                 if (view.images[view.show]->image == NULL){
                     view.images[view.show]->image = al_load_bitmap(view.images[view.show]->filename.c_str());
                 }
+                */
                 draw = true;
             } else if (event.type == PERCENT_TYPE){
                 int percent = (int) event.user.data1;
