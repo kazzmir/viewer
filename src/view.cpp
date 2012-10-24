@@ -429,16 +429,45 @@ public:
         }
     }
 
-    int maxThumbnails(ALLEGRO_DISPLAY * display) const {
+    int thumbnailsRow(ALLEGRO_DISPLAY * display) const {
         int top = al_get_display_height(display) / 3;
         int height = al_get_display_height(display) - top;
-        return (int) ((height - thumbnailHeightSpace) / (thumbnailHeight + thumbnailHeightSpace)) *
-            (int) ((al_get_display_width(display) - thumbnailWidthSpace) / (thumbnailWidth + thumbnailWidthSpace));
-        // return ((al_get_display_width(display) - thumbnailWidthSpace) * height) / ((thumbnailWidth + thumbnailWidthSpace) * (thumbnailHeight + thumbnailHeightSpace));
+        /*
+        return (height - thumbnailHeightSpace) / (thumbnailHeight + thumbnailHeightSpace);
+        */
+
+        int y = top + thumbnailHeightSpace;
+        int total = 0;
+        int max = al_get_display_height(display);
+
+        while (1){
+            total += 1;
+            y += thumbnailHeight + thumbnailHeightSpace;
+            if (y + thumbnailHeight >= max){
+                break;
+            }
+        }
+
+        return total;
+    }
+    
+    int thumbnailsLine(ALLEGRO_DISPLAY * display) const {
+        int x = 1;
+        int max = al_get_display_width(display);
+        int total = 0;
+        while (1){
+            total += 1;
+            x += thumbnailWidth + thumbnailWidthSpace;
+            if (x + thumbnailWidth >= max){
+                break;
+            }
+        }
+        return total;
+        // return (al_get_display_width(display) - 1) / (thumbnailWidthSpace + thumbnailWidth);
     }
 
-    int thumbnailsLine(ALLEGRO_DISPLAY * display) const {
-        return (al_get_display_width(display) - 1) / (thumbnailWidthSpace + thumbnailWidth);
+    int maxThumbnails(ALLEGRO_DISPLAY * display) const {
+        return thumbnailsRow(display) * thumbnailsLine(display);
     }
 
     void largerThumbnails(ALLEGRO_DISPLAY * display){
@@ -496,6 +525,15 @@ public:
     
     void pageDown(ALLEGRO_DISPLAY * display){
         move(display, maxThumbnails(display));
+    }
+
+    /* Returns true if the image is in the current viewable set of images and
+     * thus needs to redraw the screen.
+     */
+    bool addImage(Image * image, ALLEGRO_DISPLAY * display){
+        images.push_back(image);
+        int size = images.size();
+        return size >= scroll && size < maxThumbnails(display);
     }
 
     void updateScroll(ALLEGRO_DISPLAY * display){
@@ -810,14 +848,20 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
 
     int count = view.scroll;
     int total = view.maxThumbnails(display);
-    int shown = 0;
-    for (vector<Image*>::const_iterator it = view.images.begin() + view.scroll; it != view.images.end() && shown < total; it++, count++, shown++){
+
+    for (vector<Image*>::const_iterator it = view.images.begin() + view.scroll; it != view.images.end(); it++, count++){
         Image * store = *it;
         ALLEGRO_BITMAP * image = store->video;
 
         if (image == NULL){
+            /* This should never really happen but its a failsafe */
+            store->video = al_clone_bitmap(store->thumbnail);
+            image = store->video;
+
+            /*
             printf("Video thumbnail image should not be null!\n");
             throw std::exception();
+            */
         }
 
         int px = x;
@@ -843,7 +887,8 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
         ph = newHeight;
 
         debug("thumbnail at %d, %d %d, %d\n", px, py, pw, ph);
-        al_draw_scaled_bitmap(image, 0, 0, al_get_bitmap_width(image), al_get_bitmap_height(image),
+        al_draw_scaled_bitmap(image,
+                              0, 0, al_get_bitmap_width(image), al_get_bitmap_height(image),
                               px, py, pw, ph, 0);
 
         if (count == view.show){
@@ -1252,8 +1297,7 @@ int main(int argc, char ** argv){
             } else if (event.type == VIEW_TYPE){
                 debug("Got image %p\n", event.user.data1);
                 Image * image = (Image*) event.user.data1;
-                view.images.push_back(image);
-                draw = true;
+                draw = view.addImage(image, display);
             } else if (event.type == PERCENT_TYPE){
                 int percent = (int) event.user.data1;
                 view.percent = percent;
