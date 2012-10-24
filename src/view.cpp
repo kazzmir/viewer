@@ -805,7 +805,7 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
         al_draw_text(font, al_map_rgb_f(1, 1, 1), al_get_display_width(display) - 1, 1, ALLEGRO_ALIGN_RIGHT, number.str().c_str());
     }
 
-    int x = view.thumbnailWidthSpace;
+    int x = 1;
     int y = top + view.thumbnailHeightSpace;
 
     int count = view.scroll;
