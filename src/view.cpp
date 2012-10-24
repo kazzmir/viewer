@@ -162,7 +162,9 @@ public:
             }
         }
 
-        /* Pull the first task off the list */
+        /* Pull the first task off the list. Whoever gets the task must
+         * take care to delete it.
+         */
         Task * getTask(){
             Task * out = NULL;
             al_lock_mutex(mutex);
@@ -222,6 +224,7 @@ public:
             box->setBitmap(out);
         }
 
+        /* Polls for a task */
         Task * nextTask(){
             while (alive()){
                 Task * next = tasks.getTask();
@@ -251,7 +254,7 @@ public:
             while (alive()){
                 /* nextMailbox will sleep until theres something ready */
                 Task * next = nextTask();
-                /* We might have died while waiting for a mailbox */
+                /* We might have died while waiting for a task */
                 if (alive()){
                     load(next->getBox());
                 }
@@ -284,6 +287,18 @@ public:
         for (vector<Worker*>::iterator it = workers.begin(); it != workers.end(); it++){
             Worker * worker = *it;
             delete worker;
+        }
+
+        /* There is an interesting race here. The task list class will delete all
+         * existing tasks but they are referencing mailboxes. We can't delete the
+         * mailboxes first because the Task destructor will call box->dec(). We need
+         * to somehow delete the mailboxes after the task list destructor runs.
+         * I suppose the task list could be made a pointer so we can manually
+         * schedule its deletion and then delete all the remaining mailboxes afterwards.
+         */
+
+        if (currentBitmap != NULL){
+            al_destroy_bitmap(currentBitmap);
         }
     }
 
