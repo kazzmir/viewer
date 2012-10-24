@@ -438,7 +438,7 @@ public:
     }
 
     int thumbnailsLine(ALLEGRO_DISPLAY * display) const {
-        return (al_get_display_width(display) - thumbnailWidthSpace) / (thumbnailWidthSpace + thumbnailWidth);
+        return (al_get_display_width(display) - 1) / (thumbnailWidthSpace + thumbnailWidth);
     }
 
     void largerThumbnails(ALLEGRO_DISPLAY * display){
