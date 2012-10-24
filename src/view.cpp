@@ -31,10 +31,13 @@ bool doQuit = false;
 struct Image{
     Image(ALLEGRO_BITMAP * thumbnail, const string & name):
         thumbnail(thumbnail),
+        video(NULL),
         filename(name){
         }
 
     ALLEGRO_BITMAP * thumbnail;
+    /* Video copy of the thumbnail */
+    ALLEGRO_BITMAP * video;
     string filename;
 };
 
@@ -531,6 +534,7 @@ public:
      * that are visible to video
      */
     void updateBitmaps(ALLEGRO_DISPLAY * display) const {
+        /*
         al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
         for (int i = 0; i < scroll; i++){
             Image * image = images[i];
@@ -546,14 +550,29 @@ public:
                 al_convert_bitmap(bitmap);
             }
         }
+        */
+
+        for (int i = 0; i < scroll; i++){
+            Image * image = images[i];
+            if (image->video != NULL){
+                al_destroy_bitmap(image->video);
+                image->video = NULL;
+            }
+        }
+        for (int i = scroll + maxThumbnails(display); i < images.size(); i++){
+            Image * image = images[i];
+            if (image->video != NULL){
+                al_destroy_bitmap(image->video);
+                image->video = NULL;
+            }
+        }
 
         /* Set the visible ones to video */
         al_set_new_bitmap_flags(ALLEGRO_CONVERT_BITMAP);
         for (int i = scroll; i < scroll + maxThumbnails(display) && i < images.size(); i++){
             Image * image = images[i];
-            ALLEGRO_BITMAP * bitmap = image->thumbnail;
-            if ((al_get_bitmap_flags(bitmap) & ALLEGRO_MEMORY_BITMAP) != 0){
-                al_convert_bitmap(bitmap);
+            if (image->video == NULL){
+                image->video = al_clone_bitmap(image->thumbnail);
             }
         }
 
@@ -776,9 +795,16 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
     int y = top + view.thumbnailHeightSpace;
 
     int count = view.scroll;
-    for (vector<Image*>::const_iterator it = view.images.begin() + view.scroll; it != view.images.end(); it++, count++){
+    int total = view.maxThumbnails(display);
+    int shown = 0;
+    for (vector<Image*>::const_iterator it = view.images.begin() + view.scroll; it != view.images.end() && shown < total; it++, count++, shown++){
         Image * store = *it;
-        ALLEGRO_BITMAP * image = store->thumbnail;
+        ALLEGRO_BITMAP * image = store->video;
+
+        if (image == NULL){
+            printf("Video thumbnail image should not be null!\n");
+            throw std::exception();
+        }
 
         int px = x;
         int py = y;
