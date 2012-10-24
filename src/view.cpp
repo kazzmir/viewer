@@ -100,6 +100,15 @@ public:
             al_lock_mutex(mutex);
             this->bitmap = bitmap;
             al_unlock_mutex(mutex);
+
+            if (bitmap != NULL){
+                /* When the mailbox is loaded with a bitmap we output
+                 * a load event to tell the main thread to redraw if necessary.
+                 */
+                ALLEGRO_EVENT event;
+                event.user.type = LOAD_TYPE;
+                al_emit_user_event(events, &event, NULL);
+            }
         }
 
         ALLEGRO_BITMAP * getBitmap(){
@@ -144,12 +153,16 @@ public:
         }
 
         ~TaskList(){
+            /* Hopefully no one is using this task list at this point. What
+             * a fun potential race! Good job c++!
+             */
             al_destroy_mutex(mutex);
             for (vector<Task*>::iterator it = tasks.begin(); it != tasks.end(); it++){
                 delete *it;
             }
         }
 
+        /* Pull the first task off the list */
         Task * getTask(){
             Task * out = NULL;
             al_lock_mutex(mutex);
@@ -265,6 +278,9 @@ public:
     }
 
     ~ImageManager(){
+        /* We kill all the workers so in theory there should be no one using
+         * the task list when its destructor runs.
+         */
         for (vector<Worker*>::iterator it = workers.begin(); it != workers.end(); it++){
             Worker * worker = *it;
             delete worker;
@@ -280,6 +296,9 @@ public:
              * and its not reference by a task either because its completed
              * or because the task was removed from the queue before it
              * was started.
+             *
+             * The mailbox might be reference by a task currently being processed
+             * by a worker and so the count will be non-zero.
              */
             if (box->getFile() != filename &&
                 box->getCount() == 0){
@@ -304,8 +323,13 @@ public:
             return currentBitmap;
         }
 
+        currentFile = filename;
+
         cleanOldMailboxes(filename);
 
+        /* Search for the mailbox that contains the given filename and check
+         * if its done loading the bitmap.
+         */
         for (vector<Mailbox*>::iterator it = mailboxes.begin(); it != mailboxes.end(); it++){
             Mailbox * box = *it;
             if (box->getFile() == filename){
