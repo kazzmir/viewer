@@ -31,12 +31,10 @@ bool doQuit = false;
 struct Image{
     Image(ALLEGRO_BITMAP * thumbnail, const string & name):
         thumbnail(thumbnail),
-        // image(NULL),
         filename(name){
         }
 
     ALLEGRO_BITMAP * thumbnail;
-    // ALLEGRO_BITMAP * image;
     string filename;
 };
 
@@ -447,12 +445,6 @@ public:
 
     void move(ALLEGRO_DISPLAY * display, int much){
         if (images.size() > 0){
-            /*
-            if (images[show]->image != NULL){
-                al_destroy_bitmap(images[show]->image);
-                images[show]->image = NULL;
-            }
-            */
             show += much;
             if (show < 0){
                 show = 0;
@@ -460,7 +452,6 @@ public:
             if (show >= images.size()){
                 show = images.size() - 1;
             }
-            // images[show]->image = al_load_bitmap(images[show]->filename.c_str());
         }
 
         updateScroll(display);
@@ -737,7 +728,6 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
     view.updateBitmaps(display);
 
     if (view.images.size() > view.show && view.getCurrentBitmap() != NULL){
-        // Image * image = view.images[view.show];
         ALLEGRO_BITMAP * image = view.getCurrentBitmap();
         std::ostringstream number;
         number << "Image " << (view.show + 1) << " / " << view.images.size();
@@ -1031,7 +1021,14 @@ int main(int argc, char ** argv){
                             bool ok = true;
                             bool wait = true;
 
-                            /* Wait for the main image to be loaded */
+                            /* Wait for the main image to be loaded.
+                             *
+                             * FIXME: there is a non-zero chance the bitmap
+                             * can't be loaded so it will always be NULL. Instead
+                             * we can wait for a LOAD_TYPE event and if the bitmap
+                             * is still NULL after that then we should fail to show
+                             * it in the center.
+                             */
                             while (view.getCurrentBitmap() == NULL){
                                 al_rest(0.001);
                             }
@@ -1178,11 +1175,6 @@ int main(int argc, char ** argv){
                 debug("Got image %p\n", event.user.data1);
                 Image * image = (Image*) event.user.data1;
                 view.images.push_back(image);
-                /*
-                if (view.images[view.show]->image == NULL){
-                    view.images[view.show]->image = al_load_bitmap(view.images[view.show]->filename.c_str());
-                }
-                */
                 draw = true;
             } else if (event.type == PERCENT_TYPE){
                 int percent = (int) event.user.data1;
