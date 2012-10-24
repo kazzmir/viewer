@@ -296,6 +296,10 @@ public:
          * to somehow delete the mailboxes after the task list destructor runs.
          * I suppose the task list could be made a pointer so we can manually
          * schedule its deletion and then delete all the remaining mailboxes afterwards.
+         *
+         * In reality the number of tasks/mailboxes will be pretty small since workers
+         * only hold onto 1 task at a time and the task list really only contains
+         * 1 task list in its queue. So 3 tasks/mailboxes at most..
          */
 
         if (currentBitmap != NULL){
@@ -339,7 +343,12 @@ public:
             return currentBitmap;
         }
 
+        /* Its a new file so clear the old state */
         currentFile = filename;
+        if (currentBitmap != NULL){
+            al_destroy_bitmap(currentBitmap);
+            currentBitmap = NULL;
+        }
 
         cleanOldMailboxes(filename);
 
@@ -449,7 +458,7 @@ public:
             if (show >= images.size()){
                 show = images.size() - 1;
             }
-            images[show]->image = al_load_bitmap(images[show]->filename.c_str());
+            // images[show]->image = al_load_bitmap(images[show]->filename.c_str());
         }
 
         updateScroll(display);
@@ -506,6 +515,23 @@ public:
             }
         }
         */
+    }
+    
+    ALLEGRO_BITMAP * getCurrentBitmap(){
+        Image * current = currentImage();
+        if (current != NULL){
+            return manager.get(current->filename);
+        }
+
+        return NULL;
+    }
+
+    string getCurrentFilename() const {
+        Image * current = currentImage();
+        if (current != NULL){
+            return current->filename;
+        }
+        return "unknown";
     }
 
     /* set all bitmaps that aren't being shown to memory and set the bitmaps
@@ -700,7 +726,7 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
     return NULL;
 }
 
-static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & view){
+static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
     al_clear_to_color(al_map_rgb(0, 0, 0));
 
     double top = al_get_display_height(display) / 3.0;
@@ -708,24 +734,25 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
 
     view.updateBitmaps(display);
 
-    if (view.images.size() > view.show && view.images[view.show]->image != NULL){
-        Image * image = view.images[view.show];
+    if (view.images.size() > view.show && view.getCurrentBitmap() != NULL){
+        // Image * image = view.images[view.show];
+        ALLEGRO_BITMAP * image = view.getCurrentBitmap();
         std::ostringstream number;
         number << "Image " << (view.show + 1) << " / " << view.images.size();
         al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
         number.str("");
-        number << al_get_bitmap_width(image->image) << " x " << al_get_bitmap_height(image->image);
+        number << al_get_bitmap_width(image) << " x " << al_get_bitmap_height(image);
         al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1 + al_get_font_line_height(font) + 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
         // double widthRatio = (double) al_get_display_width(display) / al_get_bitmap_width(image->image);
         // double heightRatio = (double) al_get_display_height(display) / al_get_bitmap_height(image->image);
         
-        int px = al_get_display_width(display) / 2 - al_get_bitmap_width(image->image) / 2;
-        int py = top / 2 - al_get_bitmap_height(image->image) / 2;
-        int pw = al_get_bitmap_width(image->image);
-        int ph = al_get_bitmap_height(image->image);
+        int px = al_get_display_width(display) / 2 - al_get_bitmap_width(image) / 2;
+        int py = top / 2 - al_get_bitmap_height(image) / 2;
+        int pw = al_get_bitmap_width(image);
+        int ph = al_get_bitmap_height(image);
 
-        double expandHeight = (top - al_get_font_line_height(font) - 10) / (double) al_get_bitmap_height(image->image);
-        double expandWidth = (al_get_display_width(display) - 10) / (double) al_get_bitmap_width(image->image);
+        double expandHeight = (top - al_get_font_line_height(font) - 10) / (double) al_get_bitmap_height(image);
+        double expandWidth = (al_get_display_width(display) - 10) / (double) al_get_bitmap_width(image);
 
         double expand = 1;
         if (expandHeight < expandWidth){
@@ -733,18 +760,18 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, const View & 
         } else {
             expand = expandWidth;
         }
-        int newWidth = al_get_bitmap_width(image->image) * expand;
-        int newHeight = al_get_bitmap_height(image->image) * expand;
+        int newWidth = al_get_bitmap_width(image) * expand;
+        int newHeight = al_get_bitmap_height(image) * expand;
 
         px = al_get_display_width(display) / 2 - newWidth / 2;
         py = (top - al_get_font_line_height(font)) / 2 - newHeight / 2;
         pw = newWidth;
         ph = newHeight;
 
-        al_draw_scaled_bitmap(image->image, 0, 0, al_get_bitmap_width(image->image), al_get_bitmap_height(image->image),
+        al_draw_scaled_bitmap(image, 0, 0, al_get_bitmap_width(image), al_get_bitmap_height(image),
                               px, py, pw, ph, 0);
 
-        al_draw_text(font, al_map_rgb_f(1, 1, 1), al_get_display_width(display) / 2, top - al_get_font_line_height(font) - 1, ALLEGRO_ALIGN_CENTRE, image->filename.c_str()); 
+        al_draw_text(font, al_map_rgb_f(1, 1, 1), al_get_display_width(display) / 2, top - al_get_font_line_height(font) - 1, ALLEGRO_ALIGN_CENTRE, view.getCurrentFilename().c_str());
     }
 
     if (view.percent < 100){
@@ -1148,6 +1175,8 @@ int main(int argc, char ** argv){
             } else if (event.type == PERCENT_TYPE){
                 int percent = (int) event.user.data1;
                 view.percent = percent;
+                draw = true;
+            } else if (event.type == LOAD_TYPE){
                 draw = true;
             } else if (event.type == ALLEGRO_EVENT_DISPLAY_RESIZE){
                 al_acknowledge_resize(event.display.source);
