@@ -272,6 +272,7 @@ public:
     };
 
     ImageManager(ALLEGRO_EVENT_SOURCE * events):
+    currentBitmap(NULL),
     events(events){
         for (int i = 0; i < MAX_WORKERS; i++){
             Worker * worker = new Worker(tasks);
@@ -393,14 +394,15 @@ public:
 
 class View{
 public:
-    View():
+    View(ALLEGRO_EVENT_SOURCE * events):
     thumbnailWidth(40),
     thumbnailHeight(40),
     thumbnailWidthSpace(4),
     thumbnailHeightSpace(4),
     show(0),
     scroll(0),
-    percent(0){
+    percent(0),
+    manager(events){
     }
 
     int maxThumbnails(ALLEGRO_DISPLAY * display) const {
@@ -572,6 +574,8 @@ public:
     int percent;
 
     vector<Image*> images;
+
+    ImageManager manager;
 };
 
 static ALLEGRO_BITMAP * create_thumbnail(ALLEGRO_BITMAP * image){
@@ -917,7 +921,7 @@ int main(int argc, char ** argv){
         return -1;
     }
 
-    View view;
+    View view(&imageSource);
 
     debug("thumbs %d\n", view.maxThumbnails(display));
 
