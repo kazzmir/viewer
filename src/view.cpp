@@ -62,6 +62,7 @@ public:
     public:
         Mailbox(const string & file, ALLEGRO_EVENT_SOURCE * events):
         file(file),
+        count(0),
         events(events),
         bitmap(NULL){
             mutex = al_create_mutex();
@@ -69,6 +70,26 @@ public:
 
         ~Mailbox(){
             al_destroy_mutex(mutex);
+        }
+
+        void inc(){
+            al_lock_mutex(mutex);
+            this->count += 1;
+            al_unlock_mutex(mutex);
+        }
+
+        void dec(){
+            al_lock_mutex(mutex);
+            this->count -= 1;
+            al_unlock_mutex(mutex);
+        }
+
+        int getCount() const {
+            int out = 0;
+            al_lock_mutex(mutex);
+            out = this->count;
+            al_unlock_mutex(mutex);
+            return out;
         }
 
         const string getFile() const {
@@ -90,6 +111,8 @@ public:
         }
 
         const string file;
+        /* The number of tasks that reference this mailbox */
+        int count;
         ALLEGRO_EVENT_SOURCE * events;
         ALLEGRO_MUTEX * mutex;
         ALLEGRO_BITMAP * bitmap;
@@ -99,6 +122,11 @@ public:
     public:
         Task(Mailbox * box):
         box(box){
+            box->inc();
+        }
+
+        ~Task(){
+            box->dec();
         }
 
         Mailbox * getBox(){
@@ -247,8 +275,22 @@ public:
     void cleanOldMailboxes(const string & filename){
         for (vector<Mailbox*>::iterator it = mailboxes.begin(); it != mailboxes.end(); /**/){
             Mailbox * box = *it;
-            if (box->getFile() != filename && box->getBitmap() != NULL){
-                al_destroy_bitmap(box->getBitmap());
+
+            /* Delete the mailbox if it uses a file we dont care about
+             * and its not reference by a task either because its completed
+             * or because the task was removed from the queue before it
+             * was started.
+             */
+            if (box->getFile() != filename &&
+                box->getCount() == 0){
+
+                /* The bitmap in the mailbox may not have been loaded or a
+                 * load was attempted but failed so the bitmap remains NULL.
+                 */
+                ALLEGRO_BITMAP * bitmap = box->getBitmap();
+                if (bitmap != NULL){
+                    al_destroy_bitmap(bitmap);
+                }
                 delete box;
                 it = mailboxes.erase(it);
             } else {
