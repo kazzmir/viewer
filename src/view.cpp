@@ -415,6 +415,20 @@ public:
     manager(events){
     }
 
+    ~View(){
+        for (vector<Image*>::iterator it = images.begin(); it != images.end(); it++){
+            Image * image = *it;
+            if (image->thumbnail != NULL){
+                al_destroy_bitmap(image->thumbnail);
+            }
+            if (image->video != NULL){
+                al_destroy_bitmap(image->video);
+            }
+
+            delete image;
+        }
+    }
+
     int maxThumbnails(ALLEGRO_DISPLAY * display) const {
         int top = al_get_display_height(display) / 3;
         int height = al_get_display_height(display) - top;
