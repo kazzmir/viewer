@@ -1210,6 +1210,44 @@ int main(int argc, char ** argv){
                         draw = true;
                         break;
                     }
+                    /* vi keys */
+                    /* ctrl-d is unichar 4 */
+                    case 4: {
+                        if (event.keyboard.modifiers & ALLEGRO_KEYMOD_CTRL){
+                            view.pageDown(display);
+                            draw = true;
+                        }
+                        break;
+                    }
+                    /* ctrl-u is unichar 21 */
+                    case 21: {
+                        if (event.keyboard.modifiers & ALLEGRO_KEYMOD_CTRL){
+                            view.pageUp(display);
+                            draw = true;
+                        }
+                        break;
+
+                    }
+                    case 'h': {
+                        draw = true;
+                        view.moveLeft(display);
+                        break;
+                    }
+                    case 'j': {
+                        draw = true;
+                        view.moveDown(display);
+                        break;
+                    }
+                    case 'k': {
+                        draw = true;
+                        view.moveUp(display);
+                        break;
+                    }
+                    case 'l': {
+                        draw = true;
+                        view.moveRight(display);
+                        break;
+                    }
                 }
             } else if (event.type == VIEW_TYPE){
                 debug("Got image %p\n", event.user.data1);
