@@ -14,13 +14,13 @@ using std::vector;
 using std::string;
 
 /* Event for when a new thumbnail is loaded */
-const int VIEW_TYPE = ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W');
+const unsigned int VIEW_TYPE = ALLEGRO_GET_EVENT_TYPE('V', 'I', 'E', 'W');
 
 /* Event for when a percent of the files searched is incremented by at least 1 */
-const int PERCENT_TYPE = ALLEGRO_GET_EVENT_TYPE('P', 'R', 'C', 'T');
+const unsigned int PERCENT_TYPE = ALLEGRO_GET_EVENT_TYPE('P', 'R', 'C', 'T');
 
 /* Event for when an image request is done loading */
-const int LOAD_TYPE = ALLEGRO_GET_EVENT_TYPE('L', 'O', 'A', 'D');
+const unsigned int LOAD_TYPE = ALLEGRO_GET_EVENT_TYPE('L', 'O', 'A', 'D');
 
 // #define debug(...) printf(__VA_ARGS__)
 #define debug(...)
@@ -41,9 +41,11 @@ struct Image{
     string filename;
 };
 
+/*
 static bool sortImage(Image * a, Image * b){
     return a->filename < b->filename;
 }
+*/
 
 /* Loads images in the background and returns the current image when its available.
  *
@@ -256,7 +258,7 @@ public:
                 /* nextMailbox will sleep until theres something ready */
                 Task * next = nextTask();
                 /* We might have died while waiting for a task */
-                if (alive()){
+                if (alive() && next != NULL){
                     load(next->getBox());
                 }
 
@@ -431,7 +433,7 @@ public:
 
     int thumbnailsRow(ALLEGRO_DISPLAY * display) const {
         int top = al_get_display_height(display) / 3;
-        int height = al_get_display_height(display) - top;
+        // int height = al_get_display_height(display) - top;
         /*
         return (height - thumbnailHeightSpace) / (thumbnailHeight + thumbnailHeightSpace);
         */
@@ -495,7 +497,7 @@ public:
             if (show < 0){
                 show = 0;
             }
-            if (show >= images.size()){
+            if (show >= (signed) images.size()){
                 show = images.size() - 1;
             }
         }
@@ -611,7 +613,7 @@ public:
                 image->video = NULL;
             }
         }
-        for (int i = scroll + maxThumbnails(display); i < images.size(); i++){
+        for (int i = scroll + maxThumbnails(display); i < (signed) images.size(); i++){
             Image * image = images[i];
             if (image->video != NULL){
                 al_destroy_bitmap(image->video);
@@ -621,7 +623,7 @@ public:
 
         /* Set the visible ones to video */
         al_set_new_bitmap_flags(ALLEGRO_CONVERT_BITMAP);
-        for (int i = scroll; i < scroll + maxThumbnails(display) && i < images.size(); i++){
+        for (int i = scroll; i < scroll + maxThumbnails(display) && i < (signed) images.size(); i++){
             Image * image = images[i];
             if (image->video == NULL){
                 image->video = al_clone_bitmap(image->thumbnail);
@@ -646,7 +648,7 @@ public:
     }
 
     Image * currentImage() const {
-        if (show < images.size()){
+        if (show < (signed) images.size()){
             return images[show];
         }
         return NULL;
@@ -798,7 +800,7 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
 
     view.updateBitmaps(display);
 
-    if (view.images.size() > view.show){
+    if ((signed) view.images.size() > view.show){
         ALLEGRO_BITMAP * info = view.images[view.show]->thumbnail;
         std::ostringstream number;
         number << "Image " << (view.show + 1) << " / " << view.images.size();
@@ -850,7 +852,6 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
     int y = top + view.thumbnailHeightSpace;
 
     int count = view.scroll;
-    int total = view.maxThumbnails(display);
 
     for (vector<Image*>::const_iterator it = view.images.begin() + view.scroll; it != view.images.end(); it++, count++){
         Image * store = *it;
