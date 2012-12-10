@@ -1008,6 +1008,7 @@ void drawCenter(ALLEGRO_DISPLAY * display, ALLEGRO_BITMAP * image, const Positio
 int main(int argc, char ** argv){
     if (!al_init()){
         std::cout << "Could not initialize allegro. Likely to do a version mismatch. Compiled with " << ALLEGRO_VERSION_INT << " but allegro reports " << al_get_allegro_version() << std::endl;
+        return 1;
     }
     al_install_keyboard();
     al_init_image_addon();
