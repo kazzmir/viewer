@@ -746,8 +746,12 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
 }
 
 struct LoadImagesStuff{
+    /* event source to send new images through */
     ALLEGRO_EVENT_SOURCE * events;
+    /* true if doing a recursive search through the filesystem */
     bool recursive;
+    /* starting directory */
+    string start;
 };
 
 vector<string> getFiles(bool recursive, ALLEGRO_FS_ENTRY * here){
@@ -783,7 +787,12 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
     ALLEGRO_EVENT_SOURCE * events = stuff->events;
     bool recursive = stuff->recursive;
 
-    ALLEGRO_FS_ENTRY * here = al_create_fs_entry(".");
+    ALLEGRO_FS_ENTRY * here = al_create_fs_entry(stuff->start.c_str());
+    if (!al_fs_entry_exists(here)){
+        std::cout << "Directory '" << stuff->start << "' does not exist" << std::endl;
+        return NULL;
+    }
+    std::cout << "Searching in '" << stuff->start << "'" << std::endl;
     vector<string> files = getFiles(recursive, here);
     al_destroy_fs_entry(here);
 
@@ -1005,16 +1014,47 @@ void drawCenter(ALLEGRO_DISPLAY * display, ALLEGRO_BITMAP * image, const Positio
 
 }
 
-int main(int argc, char ** argv){
+static int init(){
     if (!al_init()){
         std::cout << "Could not initialize allegro. Likely to do a version mismatch. Compiled with " << ALLEGRO_VERSION_INT << " but allegro reports " << al_get_allegro_version() << std::endl;
+        return 0;
+    }
+    if (!al_install_keyboard()){
+        std::cout << "Could not initialize keyboard" << std::endl;
+        return 0;
+    }
+
+    if (!al_init_image_addon()){
+        std::cout << "Could not initialize the image addon" << std::endl;
+        return 0;
+    }
+
+    if (!al_init_primitives_addon()){
+        std::cout << "Could not initialize the primitives addon" << std::endl;
+        return 0;
+    }
+
+    al_init_font_addon();
+    /*
+    if (al_init_font_addon() != 0){
+        std::cout << "Could not initialize the font addon" << std::endl;
         return 1;
     }
-    al_install_keyboard();
-    al_init_image_addon();
-    al_init_primitives_addon();
-    al_init_font_addon();
-    al_init_ttf_addon();
+    */
+
+    if (!al_init_ttf_addon()){
+        std::cout << "Could not initialize the ttf addon" << std::endl;
+        return 0;
+    }
+
+    return 1;
+}
+
+int main(int argc, char ** argv){
+    if (!init()){
+        return 1;
+    }
+
     al_set_new_display_flags(ALLEGRO_RESIZABLE | ALLEGRO_GENERATE_EXPOSE_EVENTS);
     ALLEGRO_DISPLAY * display = al_create_display(800, 700);
     ALLEGRO_EVENT_QUEUE * queue = al_create_event_queue();
@@ -1043,10 +1083,15 @@ int main(int argc, char ** argv){
     /* Ok to put on the stack since we are in main */
     LoadImagesStuff stuff;
     stuff.events = &imageSource;
+    stuff.start = ".";
     stuff.recursive = false;
-    if (argc > 1 && (string(argv[1]) == "-r" ||
-                     string(argv[1]) == "-R")){
-        stuff.recursive = true;
+    for (int i = 1; i < argc; i++){
+        string arg = argv[i];
+        if (arg == "-r" || arg == "-R"){
+            stuff.recursive = true;
+        } else {
+            stuff.start = arg;
+        }
     }
     ALLEGRO_THREAD * imageThread = al_create_thread(loadImages, &stuff);
     al_start_thread(imageThread);
