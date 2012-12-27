@@ -811,18 +811,17 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
     view.updateBitmaps(display);
 
     if ((signed) view.images.size() > view.show){
-        ALLEGRO_BITMAP * info = view.images[view.show]->thumbnail;
         std::ostringstream number;
         number << "Image " << (view.show + 1) << " / " << view.images.size();
         al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
-        number.str("");
-        number << al_get_bitmap_width(info) << " x " << al_get_bitmap_height(info);
-        al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1 + al_get_font_line_height(font) + 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
         // double widthRatio = (double) al_get_display_width(display) / al_get_bitmap_width(image->image);
         // double heightRatio = (double) al_get_display_height(display) / al_get_bitmap_height(image->image);
         
         if (view.getCurrentBitmap() != NULL){
             ALLEGRO_BITMAP * image = view.getCurrentBitmap();
+            number.str("");
+            number << al_get_bitmap_width(image) << " x " << al_get_bitmap_height(image);
+            al_draw_text(font, al_map_rgb_f(1, 1, 1), 1, 1 + al_get_font_line_height(font) + 1, ALLEGRO_ALIGN_LEFT, number.str().c_str());
             int px = al_get_display_width(display) / 2 - al_get_bitmap_width(image) / 2;
             int py = top / 2 - al_get_bitmap_height(image) / 2;
             int pw = al_get_bitmap_width(image);
