@@ -32,7 +32,7 @@ bool doQuit = false;
 struct Image{
     Image(ALLEGRO_BITMAP * thumbnail, const string & name):
         thumbnail(thumbnail),
-        video(NULL),
+        video(nullptr),
         filename(name){
         }
 
@@ -68,7 +68,7 @@ public:
         file(file),
         count(0),
         events(events),
-        bitmap(NULL){
+        bitmap(nullptr){
             mutex = al_create_mutex();
         }
 
@@ -105,18 +105,18 @@ public:
             this->bitmap = bitmap;
             al_unlock_mutex(mutex);
 
-            if (bitmap != NULL){
+            if (bitmap != nullptr){
                 /* When the mailbox is loaded with a bitmap we output
                  * a load event to tell the main thread to redraw if necessary.
                  */
                 ALLEGRO_EVENT event;
                 event.user.type = LOAD_TYPE;
-                al_emit_user_event(events, &event, NULL);
+                al_emit_user_event(events, &event, nullptr);
             }
         }
 
         ALLEGRO_BITMAP * getBitmap(){
-            ALLEGRO_BITMAP * out = NULL;
+            ALLEGRO_BITMAP * out = nullptr;
             al_lock_mutex(mutex);
             out = this->bitmap;
             al_unlock_mutex(mutex);
@@ -170,7 +170,7 @@ public:
          * take care to delete it.
          */
         Task * getTask(){
-            Task * out = NULL;
+            Task * out = nullptr;
             al_lock_mutex(mutex);
             if (tasks.size() > 0){
                 out = tasks[0];
@@ -203,12 +203,12 @@ public:
         isAlive(true),
         tasks(tasks){
             aliveMutex = al_create_mutex();
-            thread = NULL;
+            thread = nullptr;
         }
 
         ~Worker(){
             kill();
-            al_join_thread(thread, NULL);
+            al_join_thread(thread, nullptr);
             al_destroy_mutex(aliveMutex);
         }
 
@@ -232,12 +232,12 @@ public:
         Task * nextTask(){
             while (alive()){
                 Task * next = tasks.getTask();
-                if (next != NULL){
+                if (next != nullptr){
                     return next;
                 }
                 al_rest(0.001);
             }
-            return NULL;
+            return nullptr;
         }
 
         bool alive(){
@@ -259,7 +259,7 @@ public:
                 /* nextMailbox will sleep until theres something ready */
                 Task * next = nextTask();
                 /* We might have died while waiting for a task */
-                if (alive() && next != NULL){
+                if (alive() && next != nullptr){
                     load(next->getBox());
                 }
 
@@ -271,12 +271,12 @@ public:
         static void * run(ALLEGRO_THREAD * thread, void * self){
             Worker * worker = (Worker*) self;
             worker->work();
-            return NULL;
+            return nullptr;
         }
     };
 
     ImageManager(ALLEGRO_EVENT_SOURCE * events):
-    currentBitmap(NULL),
+    currentBitmap(nullptr),
     events(events){
         for (int i = 0; i < MAX_WORKERS; i++){
             Worker * worker = new Worker(tasks);
@@ -305,7 +305,7 @@ public:
          * 1 task list in its queue. So 3 tasks/mailboxes at most..
          */
 
-        if (currentBitmap != NULL){
+        if (currentBitmap != nullptr){
             al_destroy_bitmap(currentBitmap);
         }
     }
@@ -330,10 +330,10 @@ public:
                 box->getCount() == 0){
 
                 /* The bitmap in the mailbox may not have been loaded or a
-                 * load was attempted but failed so the bitmap remains NULL.
+                 * load was attempted but failed so the bitmap remains nullptr.
                  */
                 ALLEGRO_BITMAP * bitmap = box->getBitmap();
-                if (bitmap != NULL){
+                if (bitmap != nullptr){
                     al_destroy_bitmap(bitmap);
                 }
                 delete box;
@@ -345,15 +345,15 @@ public:
     }
 
     ALLEGRO_BITMAP * get(const string & filename){
-        if (filename == currentFile && currentBitmap != NULL){
+        if (filename == currentFile && currentBitmap != nullptr){
             return currentBitmap;
         }
 
         /* Its a new file so clear the old state */
         currentFile = filename;
-        if (currentBitmap != NULL){
+        if (currentBitmap != nullptr){
             al_destroy_bitmap(currentBitmap);
-            currentBitmap = NULL;
+            currentBitmap = nullptr;
         }
 
         cleanOldMailboxes(filename);
@@ -365,12 +365,12 @@ public:
             Mailbox * box = *it;
             if (box->getFile() == filename){
                 ALLEGRO_BITMAP * use = box->getBitmap();
-                if (use != NULL){
+                if (use != nullptr){
                     /* We found a mailbox that was done loading so
                      * convert the loaded bitmap to a video one
                      * and destroy the mailbox.
                      */
-                    if (currentBitmap != NULL){
+                    if (currentBitmap != nullptr){
                         al_destroy_bitmap(currentBitmap);
                     }
 
@@ -387,7 +387,7 @@ public:
                     /* Otherwise theres already a box for this bitmap so we
                      * must be waiting for it to complete.
                      */
-                    return NULL;
+                    return nullptr;
                 }
             }
         }
@@ -398,7 +398,7 @@ public:
 
         tasks.addTask(new Task(box));
 
-        return NULL;
+        return nullptr;
     }
 
     vector<Worker*> workers;
@@ -425,10 +425,10 @@ public:
 
     ~View(){
         for (Image * image: images){
-            if (image->thumbnail != NULL){
+            if (image->thumbnail != nullptr){
                 al_destroy_bitmap(image->thumbnail);
             }
-            if (image->video != NULL){
+            if (image->video != nullptr){
                 al_destroy_bitmap(image->video);
             }
 
@@ -574,16 +574,16 @@ public:
     
     ALLEGRO_BITMAP * getCurrentBitmap(){
         Image * current = currentImage();
-        if (current != NULL){
+        if (current != nullptr){
             return manager.get(current->filename);
         }
 
-        return NULL;
+        return nullptr;
     }
 
     string getCurrentFilename() const {
         Image * current = currentImage();
-        if (current != NULL){
+        if (current != nullptr){
             return current->filename;
         }
         return "unknown";
@@ -613,16 +613,16 @@ public:
 
         for (int i = 0; i < scroll; i++){
             Image * image = images[i];
-            if (image->video != NULL){
+            if (image->video != nullptr){
                 al_destroy_bitmap(image->video);
-                image->video = NULL;
+                image->video = nullptr;
             }
         }
         for (int i = scroll + maxThumbnails(display); i < (signed) images.size(); i++){
             Image * image = images[i];
-            if (image->video != NULL){
+            if (image->video != nullptr){
                 al_destroy_bitmap(image->video);
-                image->video = NULL;
+                image->video = nullptr;
             }
         }
 
@@ -630,7 +630,7 @@ public:
         al_set_new_bitmap_flags(ALLEGRO_CONVERT_BITMAP);
         for (int i = scroll; i < scroll + maxThumbnails(display) && i < (signed) images.size(); i++){
             Image * image = images[i];
-            if (image->video == NULL){
+            if (image->video == nullptr){
                 image->video = al_clone_bitmap(image->thumbnail);
             }
         }
@@ -656,7 +656,7 @@ public:
         if (show < (signed) images.size()){
             return images[show];
         }
-        return NULL;
+        return nullptr;
     }
 
     int thumbnailWidth;
@@ -724,12 +724,12 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
             ALLEGRO_EVENT event;
             event.user.type = PERCENT_TYPE;
             event.user.data1 = (intptr_t) (int)now;
-            al_emit_user_event(events, &event, NULL);
+            al_emit_user_event(events, &event, nullptr);
             percent = now;
         }
 
         ALLEGRO_BITMAP * image = al_load_bitmap(imageName.c_str());
-        if (image != NULL){
+        if (image != nullptr){
             ALLEGRO_EVENT event;
             event.user.type = VIEW_TYPE;
             debug(" ..image %p\n", image);
@@ -737,7 +737,7 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
             al_destroy_bitmap(image);
             Image * store = new Image(thumbnail, imageName);
             event.user.data1 = (intptr_t) store;
-            al_emit_user_event(events, &event, NULL);
+            al_emit_user_event(events, &event, nullptr);
         }
     }
 
@@ -746,7 +746,7 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
         ALLEGRO_EVENT event;
         event.user.type = PERCENT_TYPE;
         event.user.data1 = (intptr_t) 100;
-        al_emit_user_event(events, &event, NULL);
+        al_emit_user_event(events, &event, nullptr);
     }
 }
 
@@ -763,7 +763,7 @@ vector<string> getFiles(bool recursive, ALLEGRO_FS_ENTRY * here){
     al_open_directory(here);
     ALLEGRO_FS_ENTRY * file = al_read_directory(here);
     vector<string> files;
-    while (file != NULL){
+    while (file != nullptr){
         al_lock_mutex(globalQuit);
         if (doQuit){
             al_unlock_mutex(globalQuit);
@@ -795,7 +795,7 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
     ALLEGRO_FS_ENTRY * here = al_create_fs_entry(stuff->start.c_str());
     if (!al_fs_entry_exists(here)){
         std::cout << "Directory '" << stuff->start << "' does not exist" << std::endl;
-        return NULL;
+        return nullptr;
     }
     std::cout << "Searching in '" << stuff->start << "'" << std::endl;
     vector<string> files = getFiles(recursive, here);
@@ -804,7 +804,7 @@ void * loadImages(ALLEGRO_THREAD * self, void * data){
     std::sort(files.begin(), files.end());
     loadFiles(files, events);
 
-    return NULL;
+    return nullptr;
 }
 
 static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
@@ -822,7 +822,7 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
         // double widthRatio = (double) al_get_display_width(display) / al_get_bitmap_width(image->image);
         // double heightRatio = (double) al_get_display_height(display) / al_get_bitmap_height(image->image);
         
-        if (view.getCurrentBitmap() != NULL){
+        if (view.getCurrentBitmap() != nullptr){
             ALLEGRO_BITMAP * image = view.getCurrentBitmap();
             number.str("");
             number << al_get_bitmap_width(image) << " x " << al_get_bitmap_height(image);
@@ -871,7 +871,7 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
         count += 1;
         ALLEGRO_BITMAP * image = store->video;
 
-        if (image == NULL){
+        if (image == nullptr){
             /* This should never really happen but its a failsafe */
             store->video = al_clone_bitmap(store->thumbnail);
             image = store->video;
@@ -931,7 +931,7 @@ ALLEGRO_FONT * getFont(){
     std::ostringstream out;
     ALLEGRO_PATH * path = al_get_standard_path(ALLEGRO_EXENAME_PATH);
     debug("Original path is '%s'\n", al_path_cstr(path, ALLEGRO_NATIVE_PATH_SEP));
-    al_set_path_filename(path, NULL);
+    al_set_path_filename(path, nullptr);
     // al_remove_path_component(path, -1);
     out << al_path_cstr(path, ALLEGRO_NATIVE_PATH_SEP) << "/" << "arial.ttf";
     al_destroy_path(path);
@@ -1071,7 +1071,7 @@ int main(int argc, char ** argv){
     globalQuit = al_create_mutex();
 
     ALLEGRO_FONT * font = getFont();
-    if (font == NULL){
+    if (font == nullptr){
         printf("Could not load font\n");
         al_destroy_mutex(globalQuit);
         return -1;
@@ -1114,7 +1114,7 @@ int main(int argc, char ** argv){
                         al_lock_mutex(globalQuit);
                         doQuit = true;
                         al_unlock_mutex(globalQuit);
-                        al_join_thread(imageThread, NULL);
+                        al_join_thread(imageThread, nullptr);
                         al_destroy_user_event_source(&imageSource);
                         al_destroy_display(display);
                         debug("Quit\n");
@@ -1159,7 +1159,7 @@ int main(int argc, char ** argv){
                          */
 
                         Image * image = view.currentImage();
-                        if (image != NULL){
+                        if (image != nullptr){
                             bool ok = true;
                             bool wait = true;
 
@@ -1171,7 +1171,7 @@ int main(int argc, char ** argv){
                              * is still NULL after that then we should fail to show
                              * it in the center.
                              */
-                            while (view.getCurrentBitmap() == NULL){
+                            while (view.getCurrentBitmap() == nullptr){
                                 al_rest(0.001);
                             }
 
