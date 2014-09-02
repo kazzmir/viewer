@@ -161,8 +161,8 @@ public:
              * a fun potential race! Good job c++!
              */
             al_destroy_mutex(mutex);
-            for (vector<Task*>::iterator it = tasks.begin(); it != tasks.end(); it++){
-                delete *it;
+            for (Task * task: tasks){
+                delete task;
             }
         }
 
@@ -184,8 +184,8 @@ public:
         void addTask(Task * task){
             al_lock_mutex(mutex);
             /* We actually don't care about old tasks so just erase them */
-            for (vector<Task*>::iterator it = tasks.begin(); it != tasks.end(); it++){
-                delete *it;
+            for (Task * task: tasks){
+                delete task;
             }
             tasks.clear();
             tasks.insert(tasks.begin(), task);
@@ -289,8 +289,7 @@ public:
         /* We kill all the workers so in theory there should be no one using
          * the task list when its destructor runs.
          */
-        for (vector<Worker*>::iterator it = workers.begin(); it != workers.end(); it++){
-            Worker * worker = *it;
+        for (Worker * worker: workers){
             delete worker;
         }
 
@@ -313,7 +312,10 @@ public:
 
     /* Delete any mailboxes that are complete but dont match the current file */
     void cleanOldMailboxes(const string & filename){
-        for (vector<Mailbox*>::iterator it = mailboxes.begin(); it != mailboxes.end(); /**/){
+        /* C++11 note: Not sure if its a good idea to use auto here.
+         * Also, can we not use ranged for because we might delete something while iterating?
+         */
+        for (auto it = mailboxes.begin(); it != mailboxes.end(); /**/){
             Mailbox * box = *it;
 
             /* Delete the mailbox if it uses a file we dont care about
@@ -376,6 +378,9 @@ public:
                     /* Convert it from memory to video */
                     al_convert_bitmap(use);
                     delete box;
+                    /* Its ok to erase even with the it++ in the for loop because we are going
+                     * to return immediately so we will never get to the next it++
+                     */
                     mailboxes.erase(it);
                     return currentBitmap;
                 } else {
@@ -419,8 +424,7 @@ public:
     }
 
     ~View(){
-        for (vector<Image*>::iterator it = images.begin(); it != images.end(); it++){
-            Image * image = *it;
+        for (Image * image: images){
             if (image->thumbnail != NULL){
                 al_destroy_bitmap(image->thumbnail);
             }
@@ -706,7 +710,8 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
     double percent = 0;
     al_set_new_bitmap_flags(ALLEGRO_MEMORY_BITMAP);
     int count = 0;
-    for (vector<string>::const_iterator it = files.begin(); it != files.end(); it++, count++){
+    for (const string & imageName: files){
+        count += 1;
         al_lock_mutex(globalQuit);
         if (doQuit){
             al_unlock_mutex(globalQuit);
@@ -723,14 +728,14 @@ static void loadFiles(const vector<string> & files, ALLEGRO_EVENT_SOURCE * event
             percent = now;
         }
 
-        ALLEGRO_BITMAP * image = al_load_bitmap(it->c_str());
+        ALLEGRO_BITMAP * image = al_load_bitmap(imageName.c_str());
         if (image != NULL){
             ALLEGRO_EVENT event;
             event.user.type = VIEW_TYPE;
             debug(" ..image %p\n", image);
             ALLEGRO_BITMAP * thumbnail = create_thumbnail(image);
             al_destroy_bitmap(image);
-            Image * store = new Image(thumbnail, *it);
+            Image * store = new Image(thumbnail, imageName);
             event.user.data1 = (intptr_t) store;
             al_emit_user_event(events, &event, NULL);
         }
@@ -862,8 +867,8 @@ static void redraw(ALLEGRO_DISPLAY * display, ALLEGRO_FONT * font, View & view){
 
     int count = view.scroll;
 
-    for (vector<Image*>::const_iterator it = view.images.begin() + view.scroll; it != view.images.end(); it++, count++){
-        Image * store = *it;
+    for (Image * store: vector<Image*>(view.images.begin() + view.scroll, view.images.end())){
+        count += 1;
         ALLEGRO_BITMAP * image = store->video;
 
         if (image == NULL){
